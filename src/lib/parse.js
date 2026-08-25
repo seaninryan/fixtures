@@ -5,23 +5,27 @@
 // whole weekend.
 export const CLUB_ID = "2960";
 
+// One spelling of the selector, so a class change cannot break the split and the
+// filter asymmetrically. Deliberately does not require the closing quote: the plugin
+// appending a class (`... fixtures past"`) must not silently match zero blocks.
 const BLOCK_START = '<ul class="column-eight table-body fixtures';
-const SPLIT = /(?=<ul class="column-eight table-body fixtures")/;
+const SPLIT = new RegExp(`(?=${BLOCK_START})`);
 
 function decode(s) {
   return s
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&#x27;/g, "'")
-    .replace(/&#8217;/g, "’")
-    .replace(/&nbsp;/g, " ");
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&nbsp;/g, " ")
+    // Last, so `&amp;lt;` decodes once to `&lt;` and not twice to `<`.
+    .replace(/&amp;/g, "&");
 }
 
 function dataAttrs(openTag) {
   const out = {};
-  for (const m of openTag.matchAll(/data-([a-z0-9]+)="([^"]*)"/g)) {
+  for (const m of openTag.matchAll(/data-([a-z0-9-]+)="([^"]*)"/g)) {
     out[m[1]] = decode(m[2]).trim();
   }
   return out;
@@ -43,32 +47,50 @@ export function parse(html) {
   }
 
   const blocks = html.split(SPLIT).filter((b) => b.startsWith(BLOCK_START));
+  if (blocks.length === 0) {
+    return { fixtures, errors: [`no fixture blocks found in ${html.length} bytes of HTML`] };
+  }
 
   blocks.forEach((block, i) => {
     try {
-      const open = block.slice(0, block.indexOf(">") + 1);
-      const a = dataAttrs(open);
+      // Quote-aware, so a `>` inside an attribute value cannot truncate the open tag
+      // and silently blank every attribute after it. data-comment is admin free text
+      // ("Moved as agreed (21/8)") and is followed by data-venue and data-compname.
+      const openMatch = /^<ul(?:[^>"]|"[^"]*")*>/.exec(block);
+      const open = openMatch ? openMatch[0] : block.slice(0, block.indexOf(">") + 1);
+      const attrs = dataAttrs(open);
+      const label = `block ${i} (${attrs.hometeam || "?"} v ${attrs.awayteam || "?"}, ${attrs.date || "?"})`;
+
+      // NOTE: every data-fid in this feed lives inside an HTML COMMENT — the plugin
+      // emits a commented-out .toggle-table div and nothing else carries the fid. The
+      // whole identity scheme therefore depends on markup its author has already
+      // disabled. If the plugin ever drops that dead block, no fixture gets an id; the
+      // zero-blocks guard above and this per-block error are what make that loud.
       const fid = block.match(/data-fid="(\d+)"/)?.[1] ?? null;
+      // First match wins, and the home side is always listed first — so in a derby
+      // between two of our own teams we keep the home team's id and lose the away one.
       const ours = block.match(
-        new RegExp(`clubprofile/${CLUB_ID}/\\?competition_id=(\\d+)&(?:amp;)?team_id=(\\d+)`),
+        new RegExp(
+          `clubprofile/${CLUB_ID}/\\?competition_id=(?<competitionId>\\d+)&(?:amp;)?team_id=(?<teamId>\\d+)`,
+        ),
       );
-      if (!fid) return void errors.push(`block ${i}: no data-fid`);
-      if (!ours) return void errors.push(`block ${i} (fid ${fid}): no team link for club ${CLUB_ID}`);
-      if (!a.date || !a.time) return void errors.push(`block ${i} (fid ${fid}): missing date or time`);
+      if (!fid) return void errors.push(`${label}: no data-fid`);
+      if (!ours) return void errors.push(`${label}: no team link for club ${CLUB_ID}`);
+      if (!attrs.date || !attrs.time) return void errors.push(`${label}: missing date or time`);
 
       fixtures.push({
         fid,
-        teamId: ours[2],
-        competitionId: ours[1],
-        date: a.date,
-        time: a.time,
-        homeTeam: a.hometeam ?? "",
-        awayTeam: a.awayteam ?? "",
+        teamId: ours.groups.teamId,
+        competitionId: ours.groups.competitionId,
+        date: attrs.date,
+        time: attrs.time,
+        homeTeam: attrs.hometeam ?? "",
+        awayTeam: attrs.awayteam ?? "",
         homeClubId: sideClubId(block, "team1"),
         awayClubId: sideClubId(block, "team2"),
-        venue: a.venue ?? "",
-        competition: a.compname ?? "",
-        comment: a.comment ?? "",
+        venue: attrs.venue ?? "",
+        competition: attrs.compname ?? "",
+        comment: attrs.comment ?? "",
       });
     } catch (e) {
       errors.push(`block ${i}: ${e.message}`);
