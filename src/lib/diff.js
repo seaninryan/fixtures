@@ -57,6 +57,11 @@ export function diff(prev, next, today) {
     }
     // The league writes its explanation in the comment, so it is context on the change
     // above rather than an item of its own. Alone, it is still worth knowing about.
+    //
+    // NOTE THE SHAPE: this is the one change type with NO `comment` key - the text is
+    // the change, so it lives in from/to. That asymmetry is deliberate and load-bearing:
+    // changeReport renders `League note: "..."` from `change.comment`, so setting it here
+    // would print a note change's text twice. Consumers must read from/to for this type.
     if (!substantive && p.comment !== n.comment) {
       changes.push({ type: "comment", fid, teamId: n.teamId, fixture: n,
         from: p.comment, to: n.comment });
