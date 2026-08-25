@@ -829,8 +829,18 @@ describe("seedConfig", () => {
   });
 
   it("gives distinct colours to distinct squads", () => {
+    // Distinctness is capped by the palette, not by the squad count - seedConfig walks
+    // PALETTE taking the first unused colour, so once the club outgrows the palette the
+    // guarantee is "as distinct as possible", not "all different".
     const colors = Object.values(seedConfig(fixtures, null).teams).map((t) => t.color);
-    expect(new Set(colors).size).toBe(TEAM_COUNT);
+    expect(new Set(colors).size).toBe(Math.min(TEAM_COUNT, PALETTE.length));
+  });
+
+  it("rejects a configured colour that is not a hex value rather than rendering it", () => {
+    // A CSS colour name or 3-digit hex reaches contrastFg as NaN and silently produces
+    // white text on an unvalidated background.
+    const config = seedConfig(fixtures, { version: 1, teams: { "235380": { label: "X", color: "red" } } });
+    expect(config.teams["235380"].color).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });
 ```
@@ -2441,6 +2451,10 @@ export default function App() {
   Menlo, monospace; overflow-x: auto; }
 .change { padding: 8px 0; border-top: 1px solid var(--line); }
 .change:first-of-type { border-top: 0; }
+/* Squad chips are UI badges, NOT body text. Six of the 24 palette colours sit between
+   3:1 and 4.5:1 against their best foreground and cannot be fixed by text colour, so
+   the 3:1 large/bold floor is the one that must apply: keep chip text bold and do not
+   drop it below 14px. See squadColors.js contrastFg. */
 .tag { display: inline-block; font-size: 11px; letter-spacing: .08em;
   border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; margin-right: 8px; }
 .tag.warn { border-color: #e5a94d; color: #e5a94d; }

@@ -12,7 +12,7 @@ const html = readFileSync(new URL("./fixtures/club2960.html", import.meta.url), 
 const squadIds = [...new Set(normalizeAll(parse(html).fixtures).fixtures.map((f) => f.teamId))];
 
 describe("PALETTE", () => {
-  it("has enough distinct hex colours to give every squad its own", () => {
+  it("has at least one distinct palette entry per squad", () => {
     expect(PALETTE.length).toBeGreaterThanOrEqual(TEAM_COUNT);
     expect(new Set(PALETTE).size).toBe(PALETTE.length);
     expect(PALETTE.every((c) => /^#[0-9a-f]{6}$/.test(c))).toBe(true);
@@ -30,6 +30,10 @@ describe("contrastFg", () => {
     // Yellow and magenta are each two full channels, but yellow is the bright one to
     // the eye. A naive channel average would call them identical.
     expect(contrastFg("#ffff00")).toBe("#17222b");
+    // Known limitation, pinned rather than hidden: by WCAG, magenta is more legible
+    // with DARK text (5.18 vs 3.14), but this fast luminance puts it on the light-text
+    // side. No palette entry sits in that region, so it is not worth a second
+    // colour-space conversion to fix.
     expect(contrastFg("#ff00ff")).toBe("#ffffff");
   });
 
@@ -62,15 +66,16 @@ describe("squadColor", () => {
     expect(squadColor("235435", {})).toEqual({ bg: "#e5a94d", fg: "#17222b" });
   });
 
-  it("is stable: the same team always gets the same fallback", () => {
-    expect(squadColor("999999", {}).bg).toBe(squadColor("999999", {}).bg);
-  });
-
   it("is stable ACROSS RUNS: these ids resolve to these exact colours", () => {
     // Pinned literals, not a self-comparison. A squad's colour is seeded into the
     // config once (Task 6) and printed into announcements; if the hash changes shape
     // between releases every squad silently swaps colour. These values are the
     // contract.
+    //
+    // They are a contract for a GIVEN palette: appending a colour changes the modulo
+    // and legitimately moves these. If this test fails right after you added a palette
+    // entry, re-pin it. If it fails for any other reason, the hash shape changed and
+    // every squad's colour just moved.
     expect(squadColor("235380", {}).bg).toBe("#3fb9b9");
     expect(squadColor("235435", {}).bg).toBe("#e5a94d");
     expect(squadColor("284049", {}).bg).toBe("#7d8a99");
@@ -131,10 +136,10 @@ describe("colorEmoji", () => {
     const emojis = PALETTE.map(colorEmoji);
     expect(emojis.every((e) => typeof e === "string" && e.length > 0)).toBe(true);
     // Not all one square - the point of the emoji prefix is telling squads apart.
-    expect(new Set(emojis).size).toBeGreaterThanOrEqual(6);
-    // And no single square may swallow the palette.
+    expect(new Set(emojis).size).toBe(8);
+    // And no single square may swallow the palette. Currently the worst is blue at 6.
     for (const e of new Set(emojis)) {
-      expect(emojis.filter((x) => x === e).length).toBeLessThan(PALETTE.length / 2);
+      expect(emojis.filter((x) => x === e).length).toBeLessThanOrEqual(6);
     }
   });
 });
