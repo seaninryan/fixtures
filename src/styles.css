@@ -1,0 +1,5 @@
+:root { --bg: #0f1419; --card: #182029; --fg: #e6edf3; --dim: #9fb0c0; --line: #2a3541; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
