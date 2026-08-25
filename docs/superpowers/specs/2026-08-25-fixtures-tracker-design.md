@@ -99,7 +99,7 @@ script running in CI, because the fetch cannot happen in a browser.
 scripts/check.mjs --> fetch --> parse --> diff vs data/latest.json
         |                                       |
         |-- write data/latest.json              |
-        |-- prepend data/changes.json <---------+
+        |-- add run to data/changes.json <------+
         |-- git commit                    (history, free)
         +-- Resend email, if configured and something changed
 
@@ -157,6 +157,8 @@ the email can never render fixtures differently.
 | `diff.js` | `diff(prev, next, today) -> Change[]`. Pure, keyed on `fid`, date-aware. |
 | `announce.js` | `announce(fixtures, config, window, today) -> string`. Deterministic; golden-file tested. |
 | `changeReport.js` | `changeReport(changes, config) -> {subject, text}`. |
+| `squadColors.js` | `squadColor(teamId, config) -> {bg, fg}`. Config override, else stable hash of `teamId`. Never returns nothing. |
+| `window.js` | `windowPredicate(name, today) -> (fixture) -> boolean`. The four named windows; no other module knows their boundaries. |
 
 ---
 
@@ -195,7 +197,7 @@ the email can never render fixtures differently.
 ```
 
 ```jsonc
-// data/changes.json — newest run first, append-only
+// data/changes.json — newest run first; runs are only ever added, never edited
 [
   {
     "checkedAt": "2026-08-25T06:00:11Z",
@@ -320,13 +322,18 @@ MONDAY 31 AUGUST
   18:30  U18 Boys v Renmore
 ```
 
+- This sample assumes `teams.json` has been completed. A team still carrying
+  `label: null` renders its raw feed name (`Craughwell United`) instead — the
+  Sun 14:00 game above is team `238142`, one of the three unresolved ones.
 - Grouped by date, ordered by kick-off within a date.
 - Venue is normally omitted: `v`/`@` already implies it. A **home** game at a
   ground other than Craughwell appends `(at Colemanstown)`.
 - Opponent names keep the league's suffix (`Cregmore/Claregalway C`) — it tells
   parents which of the opposition's sides they are playing.
-- Windows: `This weekend` / `Next 7 days` / `Next 14 days` / `All`, defaulting
-  to **Next 7 days** so midweek U21 games are not stranded.
+- Windows, all inclusive of both ends and evaluated in `Europe/Dublin`:
+  `This weekend` (the coming Fri–Sun; on a Sat or Sun, the current one),
+  `Next 7 days` / `Next 14 days` (today + N-1 days), `All` (every future
+  fixture). Defaults to **Next 7 days** so midweek U21 games are not stranded.
 - Optional toggle: prefix each line with the squad's colour as an emoji square
   (`🟦 12:00 U14A Boys v St Bernards`), which survives WhatsApp intact. Off by
   default.
@@ -351,7 +358,9 @@ NEW
 Site: https://seaninryan.github.io/fixtures/
 ```
 
-**Sent only when `changes.length > 0`.** Guarded exactly like sideline's notify
+**A failed or aborted run sends nothing** — invariant 2 exits before the diff
+exists, and the Action's own failure is the signal. Otherwise **sent only when
+`changes.length > 0`.** Guarded exactly like sideline's notify
 route (`if (!secret) return ok()`): absent `RESEND_API_KEY` or `ALERT_TO_EMAIL`
 logs `email not configured - skipping` and exits clean. The snapshot is still
 written and committed. So the email path ships fully built and tested, and stays
