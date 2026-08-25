@@ -48,7 +48,13 @@ export function announce(fixtures, config, windowName, today, opts = {}) {
   const { from, to } = windowRange(windowName, today);
   const chosen = all
     .filter(inWindow)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+    // The fid tiebreak makes the order TOTAL. Without it two fixtures at the same date
+    // and time fall back to input order, so the announcement would depend on how the
+    // caller happened to sort - a guarantee this module can enforce itself instead.
+    .sort((a, b) =>
+      a.date.localeCompare(b.date) ||
+      a.time.localeCompare(b.time) ||
+      String(a.fid).localeCompare(String(b.fid)));
 
   const heading = windowName === "All"
     ? `${CLUB_TITLE}\nAll upcoming fixtures`

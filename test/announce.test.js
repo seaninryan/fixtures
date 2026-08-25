@@ -324,4 +324,14 @@ describe("announce over the golden capture", () => {
     expect(coloredLines.filter((l) => DAY_HEADING.test(l)))
       .toEqual(plainLines.filter((l) => DAY_HEADING.test(l)));
   });
+
+  it("orders two fixtures at the same kick-off by fid, whatever order it is given them", () => {
+    // Total order, independent of the caller. Reversing the input must not reorder output.
+    const a = f({ fid: "111", teamId: "254061", opponent: "Athenry" });
+    const b = f({ fid: "222", teamId: "238155", opponent: "Colga B" });
+    const forwards = announce([a, b], config, "All", "2026-08-25");
+    const backwards = announce([b, a], config, "All", "2026-08-25");
+    expect(forwards).toBe(backwards);
+    expect(forwards.indexOf("Athenry")).toBeLessThan(forwards.indexOf("Colga B"));
+  });
 });
