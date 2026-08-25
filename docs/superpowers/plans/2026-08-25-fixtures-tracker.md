@@ -35,7 +35,7 @@ Run that once per shell before starting.
 | `src/lib/normalize.js` | Raw records → typed `Fixture` (ISO date, isHome, opponent). |
 | `src/lib/teams.js` | Label derivation, config merge, config seeding. |
 | `src/lib/squadColors.js` | Palette, colour per team, contrast text, emoji square. |
-| `src/lib/window.js` | The four named date windows. Nothing else knows their boundaries. |
+| `src/lib/window.js` | The four named date windows. Nothing else knows their boundaries. **Caller contract: `today` must be a valid ISO date string** - a malformed value throws `RangeError` for the three bounded windows and fails silently for `All`, matching nothing. `announce.js` and the site must pass a known-good value, never anything user-supplied. |
 | `src/lib/diff.js` | `(prev, next, today)` → `Change[]`. |
 | `src/lib/announce.js` | `Fixture[]` → the copyable announcement text. |
 | `src/lib/changeReport.js` | `Change[]` → `{subject, text}` for the email. |
