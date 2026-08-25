@@ -315,6 +315,9 @@ describe("sortFixtures", () => {
     expect(dates[0]).toBe("2026-08-29");
     expect(dates[dates.length - 1]).toBe("2027-01-13");
   });
+});
+
+describe("isoDate — impossible dates and long month names", () => {
 
   it("rejects a day that does not exist in that month", () => {
     // Was "2026-08-32" before hardening, which reached the alert email as
