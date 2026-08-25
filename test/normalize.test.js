@@ -315,4 +315,29 @@ describe("sortFixtures", () => {
     expect(dates[0]).toBe("2026-08-29");
     expect(dates[dates.length - 1]).toBe("2027-01-13");
   });
+
+  it("rejects a day that does not exist in that month", () => {
+    // Was "2026-08-32" before hardening, which reached the alert email as
+    // "undefined NaN undefined 12:00" instead of being reported as a bad date.
+    expect(isoDate("32 Aug 2026")).toBeNull();
+    expect(isoDate("00 Aug 2026")).toBeNull();
+    expect(isoDate("31 Sep 2026")).toBeNull();
+    // V8 rolls these into March rather than calling them invalid, so a plain
+    // Number.isNaN check would let both through.
+    expect(isoDate("30 Feb 2026")).toBeNull();
+    expect(isoDate("29 Feb 2026")).toBeNull();   // 2026 is not a leap year
+    expect(isoDate("29 Feb 2024")).toBe("2024-02-29"); // ...but 2024 is
+  });
+
+  it("accepts a long month name in any casing", () => {
+    expect(isoDate("29 SEPTEMBER 2026")).toBe("2026-09-29");
+    expect(isoDate("29 September 2026")).toBe("2026-09-29");
+    expect(isoDate("29 AUG 2026")).toBe("2026-08-29");
+  });
+
+  it("deliberately tolerates a nonsense suffix after a valid month prefix", () => {
+    // Documented laxity, not an accident: the feed only ever emits three-letter months,
+    // and tightening this would reject "Sept" which it plausibly could emit.
+    expect(isoDate("29 Augxyz 2026")).toBe("2026-08-29");
+  });
 });

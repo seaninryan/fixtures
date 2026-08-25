@@ -9,11 +9,24 @@ const MONTHS = {
 // "29 Aug 2026" -> "2026-08-29". Returns null rather than guessing: a wrong date is
 // worse than a reported failure.
 export function isoDate(feedDate) {
-  const m = /^(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s+(\d{4})$/.exec(String(feedDate ?? "").trim());
+  const m = /^(\d{1,2})\s+([A-Za-z]{3})[A-Za-z]*\s+(\d{4})$/.exec(String(feedDate ?? "").trim());
   if (!m) return null;
   const month = MONTHS[m[2].toLowerCase()];
   if (!month) return null;
-  return `${m[3]}-${month}-${m[1].padStart(2, "0")}`;
+  const iso = `${m[3]}-${month}-${m[1].padStart(2, "0")}`;
+
+  // Reject a day that does not exist in that month. Without this, "32 Aug 2026" became
+  // "2026-08-32": string comparisons downstream stay sane, but changeReport's date
+  // formatter renders it as "undefined NaN undefined", emailing garbage instead of
+  // reporting a failure. That inverts this function's contract above.
+  //
+  // Date is used ONLY to validate. The value returned is always the string built here —
+  // a Date round-trip would move kick-offs across a DST boundary. Note the day-of-month
+  // check is required, not paranoia: V8 silently rolls "2026-02-30" over into March
+  // rather than reporting it invalid.
+  const probe = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(probe.getTime()) || probe.getUTCDate() !== Number(m[1])) return null;
+  return iso;
 }
 
 export function normalize(raw) {
