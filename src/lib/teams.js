@@ -61,7 +61,31 @@ export function deriveLabels(fixtures) {
     const many = counts[`${p.age}|${p.gender}`] > 1;
     labels[teamId] = `${p.age}${many ? p.letter : ""} ${p.gender}`;
   }
+
+  // Two squads deriving the SAME label is worse than two unlabelled ones: an announcement
+  // shows a duplicate line, and the change email cannot say whose fixture moved. It is
+  // reachable because the letter comes from the team name and the league names every
+  // un-suffixed side "Craughwell United" - a third side at an age the club already
+  // doubles up on collides with the first. Both claimants go to null rather than one of
+  // them being auto-suffixed to "U12C Boys", because which side is the C side is not in
+  // the feed, and inventing it is exactly the guess this module refuses to make. The
+  // owner names them once in the config, and config beats derivation from then on.
+  const claims = {};
+  for (const label of Object.values(labels)) {
+    if (label) claims[label] = (claims[label] ?? 0) + 1;
+  }
+  for (const [teamId, label] of Object.entries(labels)) {
+    if (label && claims[label] > 1) labels[teamId] = null;
+  }
   return labels;
+}
+
+// A configured label is text: trimmed, with a blank result counting as absent. Clearing
+// the box on the site must hand the squad back to derivation rather than pin it to a
+// display name that renders as nothing. Anything that is not a string is not a label -
+// repaired the same way usableColor repairs a corrupt colour.
+function cleanLabel(label) {
+  return typeof label === "string" ? label.trim() || null : null;
 }
 
 // -> {labels: {teamId: string}, unknown: teamId[]}
@@ -73,7 +97,7 @@ export function resolveTeams(fixtures, config) {
   const labels = {};
   const unknown = [];
   for (const [teamId, meta] of Object.entries(teams)) {
-    const set = config?.teams?.[teamId]?.label || null;
+    const set = cleanLabel(config?.teams?.[teamId]?.label);
     const label = set || derived[teamId] || null;
     // An unlabelled squad shows its raw feed name: visibly unfinished, never silently wrong.
     labels[teamId] = label ?? meta.ourTeam;
@@ -88,6 +112,11 @@ const HEX3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i;
 // A colour that is not a six-digit hex reaches contrastFg as NaN, which silently renders
 // white text on an unknown background. Expand a three-digit hex; reject anything else so
 // seedConfig replaces it with a real palette colour.
+//
+// An eight-digit #rrggbbaa is rejected DELIBERATELY, not by oversight: contrastFg reads
+// the low byte as blue, so an alpha hex picks the wrong foreground. If a colour picker on
+// the site ever starts emitting alpha, teach contrastFg about it here rather than
+// widening this regex, or every such colour is silently swapped for a palette one.
 function usableColor(color) {
   if (typeof color !== "string") return null;
   const c = color.trim();
@@ -103,12 +132,17 @@ export function seedConfig(fixtures, existing) {
 
   const kept = {};
   for (const [teamId, entry] of Object.entries(existing?.teams ?? {})) {
-    kept[teamId] = { label: entry?.label ?? null, color: usableColor(entry?.color) };
+    kept[teamId] = { label: cleanLabel(entry?.label), color: usableColor(entry?.color) };
   }
 
   // Walk the palette taking the first UNUSED colour. squadColor's hash cannot promise
   // distinctness (it collides by the birthday bound); this is where distinctness for
   // seeded squads actually comes from.
+  //
+  // A squad that leaves the fixture list keeps its entry, and so keeps its colour
+  // reserved. Over enough seasons a long-lived config exhausts the 24-entry palette, at
+  // which point the modulo fallback starts repeating colours. Known, not a surprise:
+  // at 19 squads there is headroom, and a repeated colour is cosmetic, not wrong.
   const used = new Set(Object.values(kept).map((t) => t.color).filter(Boolean));
   const nextColor = () => {
     const c = PALETTE.find((x) => !used.has(x)) ?? PALETTE[used.size % PALETTE.length];

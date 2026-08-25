@@ -112,6 +112,38 @@ describe("deriveLabels", () => {
     expect(l["900013"]).toBe("U20 Men");
   });
 
+  // Two squads under one name is worse than two unnamed ones - a duplicate line in the
+  // announcement, and a change email that cannot say whose fixture moved.
+  it("nulls every squad claiming a label another squad also derives", () => {
+    const collide = [
+      fx({ teamId: "900015", ourTeam: "Craughwell United", competition: "GFA Boys U12 Division 1" }),
+      fx({ teamId: "900016", ourTeam: "Craughwell United B", competition: "GFA Boys U12 Division 3" }),
+      fx({ teamId: "900017", ourTeam: "Craughwell United", competition: "GFA Boys U12 Division 5" }),
+    ];
+    const l = deriveLabels(collide);
+    expect(l["900015"]).toBeNull();
+    expect(l["900017"]).toBeNull();
+    // The side that derived a name of its own is untouched.
+    expect(l["900016"]).toBe("U12B Boys");
+  });
+
+  it("does not invent a C to break a collision", () => {
+    const collide = [
+      fx({ teamId: "900018", ourTeam: "Craughwell United", competition: "GFA Girls U14 Division 1" }),
+      fx({ teamId: "900019", ourTeam: "Craughwell United B", competition: "GFA Girls U14 Division 2" }),
+      fx({ teamId: "900020", ourTeam: "Craughwell United", competition: "GFA Girls U14 Division 4" }),
+    ];
+    expect(Object.values(deriveLabels(collide))).not.toContain("U14C Girls");
+  });
+
+  // Guards the rule against becoming load-bearing without anyone noticing. If this ever
+  // fails, the live feed has started producing duplicate labels - stop and look.
+  it("finds no collision in the real capture, so the rule is currently inert", () => {
+    const derived = Object.values(deriveLabels(fixtures)).filter(Boolean);
+    expect(new Set(derived).size).toBe(derived.length);
+    expect(derived).toHaveLength(TEAM_COUNT - 2);
+  });
+
   it("does not throw on an empty fixture list", () => {
     expect(deriveLabels([])).toEqual({});
   });
@@ -150,13 +182,26 @@ describe("resolveTeams", () => {
 
   // Clearing the box on the site must hand the squad back to derivation rather than
   // pinning it to an empty display name.
-  it("treats an empty configured label as no label at all", () => {
-    const config = { teams: { "235380": { label: "" }, "379931": { label: "" } } };
+  it("treats a blank configured label as no label at all", () => {
+    const config = { teams: { "235380": { label: "  " }, "379931": { label: "" } } };
     const { labels, unknown } = resolveTeams(fixtures, config);
     expect(labels["235380"]).toBe("U14A Boys");
     expect(unknown).not.toContain("235380");
     expect(labels["379931"]).toBe("Craughwell United");
     expect(unknown).toContain("379931");
+  });
+
+  it("reports both sides of a collision as unknown", () => {
+    const collide = [
+      fx({ teamId: "900021", ourTeam: "Craughwell United", competition: "GFA Boys U12 Division 1" }),
+      fx({ teamId: "900022", ourTeam: "Craughwell United", competition: "GFA Boys U12 Division 5" }),
+    ];
+    const { unknown } = resolveTeams(collide, { teams: {} });
+    expect(unknown.slice().sort()).toEqual(["900021", "900022"]);
+    // Naming one of them is enough to leave only the other needing a human.
+    const named = resolveTeams(collide, { teams: { "900021": { label: "U12A Boys" } } });
+    expect(named.labels["900021"]).toBe("U12A Boys");
+    expect(named.unknown).toEqual(["900022"]);
   });
 
   it("survives a missing config and an empty fixture list", () => {
@@ -226,11 +271,13 @@ describe("seedConfig", () => {
       ourTeam: "Craughwell United", competition: "GFA Boys U12 Cup" }];
     const config = seedConfig(withNew, existing);
     expect(config.teams["411902"]).toBeDefined();
-    // "GFA Boys U12 Cup" carries both an age and a gender, so this squad IS derivable
-    // and seedConfig labels it, exactly as deriveLabels' rule test requires. See the
-    // task report: the supplied baseline asserted null here, which contradicts both
-    // that rule and "labelling what it can" above.
-    expect(config.teams["411902"].label).toBe("U12A Boys");
+    // Null, but NOT because the competition says too little - "GFA Boys U12 Cup" carries
+    // both an age and a gender. This squad is un-suffixed at an age the club already
+    // doubles up on, so it derives "U12A Boys", collides with 235461, and the collision
+    // rule nulls it. The squad it collided with keeps its configured label, so only the
+    // genuinely ambiguous one needs a human.
+    expect(config.teams["411902"].label).toBeNull();
+    expect(config.teams["235461"].label).toBe("U12A Boys");
     expect(PALETTE).toContain(config.teams["411902"].color);
     // Every squad that was already there keeps the entry it had.
     expect(config.teams["235380"]).toEqual(existing.teams["235380"]);
@@ -275,6 +322,18 @@ describe("seedConfig", () => {
       expect(config.teams["235380"].color).toMatch(/^#[0-9a-f]{6}$/i);
       expect(PALETTE).toContain(config.teams["235380"].color);
     }
+  });
+
+  it("does not carry a blank configured label forward", () => {
+    const config = seedConfig(fixtures, {
+      version: 1,
+      teams: { "235380": { label: "   ", color: "#000000" }, "379931": { label: "", color: "#111111" } },
+    });
+    // Blanked back to derivation, and to "needs a human" for the underivable one.
+    expect(config.teams["235380"].label).toBeNull();
+    expect(config.teams["379931"].label).toBeNull();
+    expect(config.teams["235380"].color).toBe("#000000");
+    expect(resolveTeams(fixtures, config).labels["235380"]).toBe("U14A Boys");
   });
 
   it("expands a three-digit hex rather than discarding it", () => {
