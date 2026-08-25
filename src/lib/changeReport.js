@@ -85,7 +85,8 @@ export function changeReport(changes, config, opts = {}) {
   const unknown = opts.unknown ?? [];
   if (unknown.length) {
     footer.push(
-      `${unknown.length} squad${unknown.length === 1 ? "" : "s"} still needs a label ` +
+      `${unknown.length} squad${unknown.length === 1 ? "" : "s"} still ` +
+      `${unknown.length === 1 ? "needs" : "need"} a label ` +
       `(team ${unknown.join(", ")}). Until then it shows its raw feed name.`,
     );
   }

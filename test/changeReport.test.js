@@ -221,7 +221,7 @@ describe("changeReport footer", () => {
   // Kills K in the plural direction.
   it("pluralises the label warning for more than one squad", () => {
     const { text } = changeReport([added], config, { unknown: ["411902", "500001"] });
-    expect(text).toContain("2 squads still needs a label (team 411902, 500001).");
+    expect(text).toContain("2 squads still need a label (team 411902, 500001).");
     expect(text).not.toContain("2 squad still");
   });
 
@@ -356,7 +356,7 @@ describe("changeReport long content", () => {
   it("keeps a long unknown list on the single footer line", () => {
     const unknown = ["411902", "500001", "500002", "500003", "500004"];
     const { text } = changeReport([added], config, { unknown });
-    expect(text.split("\n").filter((l) => l.includes("still needs a label"))).toHaveLength(1);
+    expect(text.split("\n").filter((l) => l.includes("still need a label"))).toHaveLength(1);
     expect(text).toContain(`(team ${unknown.join(", ")}).`);
   });
 });
@@ -411,7 +411,7 @@ NOTE
   Sat 26 Sep 15:45
   "(none)"  ->  "Bring both kits"
 
-2 squads still needs a label (team 411902, 500001). Until then it shows its raw feed name.
+2 squads still need a label (team 411902, 500001). Until then it shows its raw feed name.
 
 Site: https://example.com/`);
   });
@@ -492,7 +492,7 @@ NEW
   Sat 3 Oct 10:30 - Athenry
   GFA Boys U14 Championship 1
 
-2 squads still needs a label (team 234323, 379931). Until then it shows its raw feed name.
+2 squads still need a label (team 234323, 379931). Until then it shows its raw feed name.
 
 Site: https://craughwellunited.example/`);
   });
@@ -506,5 +506,13 @@ Site: https://craughwellunited.example/`);
 
   it("says nothing when the snapshot has not moved", () => {
     expect(changeReport(diff(prev, prev, today), seeded, { fixtures: prev })).toBeNull();
+  });
+
+  it("agrees the verb with the number of unlabelled squads", () => {
+    const one = changeReport([added], config, { unknown: ["411902"] }).text;
+    const two = changeReport([added], config, { unknown: ["234323", "379931"] }).text;
+    expect(one).toContain("1 squad still needs a label");
+    expect(two).toContain("2 squads still need a label");
+    expect(two).not.toContain("squads still needs");
   });
 });
