@@ -168,4 +168,15 @@ describe("parse", () => {
       "block 0 (Craughwell United v St Bernards, ?): missing date or time",
     ]);
   });
+
+  it("leaves an out-of-range numeric entity alone rather than losing the fixture", () => {
+    // String.fromCodePoint throws above 0x10FFFF. One stray character in an admin
+    // comment must not cost a whole fixture.
+    const broken = withFirstBlockMutated(html, (b) =>
+      b.replace(/data-comment="[^"]*"/, 'data-comment="bad &#99999999; entity"'));
+    const { fixtures, errors } = parse(broken);
+    expect(errors).toEqual([]);
+    expect(fixtures).toHaveLength(FIXTURE_COUNT);
+    expect(fixtures.find((f) => f.fid === "6951014").comment).toBe("bad &#99999999; entity");
+  });
 });

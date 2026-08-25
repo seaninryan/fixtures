@@ -11,13 +11,24 @@ export const CLUB_ID = "2960";
 const BLOCK_START = '<ul class="column-eight table-body fixtures';
 const SPLIT = new RegExp(`(?=${BLOCK_START})`);
 
+// An out-of-range numeric entity (&#99999999;) makes String.fromCodePoint throw. That
+// would cost the whole fixture over one stray character in an admin comment, so an
+// undecodable entity is left as written instead.
+function codePoint(n, original) {
+  try {
+    return String.fromCodePoint(n);
+  } catch {
+    return original;
+  }
+}
+
 function decode(s) {
   return s
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d))
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => codePoint(+d, `&#${d};`))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => codePoint(parseInt(h, 16), `&#x${h};`))
     .replace(/&nbsp;/g, " ")
     // Last, so `&amp;lt;` decodes once to `&lt;` and not twice to `<`.
     .replace(/&amp;/g, "&");
