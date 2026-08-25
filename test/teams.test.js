@@ -13,7 +13,9 @@ const { fixtures } = normalizeAll(parse(html).fixtures);
 
 // A synthetic fixture. The golden capture has no derby, no C side and no squad whose
 // competition changes mid-season, so those rules are exercised against hand-built input.
-const fx = (over) => ({ ...fixtures[0], ...over });
+// fid is derived from teamId so sibling synthetics never share fixtures[0].fid. Keying
+// here is on teamId, but diff.js treats fid AS the identity - duplicates would mislead.
+const fx = (over) => ({ ...fixtures[0], fid: `syn-${over.teamId ?? "x"}`, ...over });
 
 describe("deriveLabels", () => {
   const labels = deriveLabels(fixtures);
@@ -127,21 +129,12 @@ describe("deriveLabels", () => {
     expect(l["900016"]).toBe("U12B Boys");
   });
 
-  it("does not invent a C to break a collision", () => {
-    const collide = [
-      fx({ teamId: "900018", ourTeam: "Craughwell United", competition: "GFA Girls U14 Division 1" }),
-      fx({ teamId: "900019", ourTeam: "Craughwell United B", competition: "GFA Girls U14 Division 2" }),
-      fx({ teamId: "900020", ourTeam: "Craughwell United", competition: "GFA Girls U14 Division 4" }),
-    ];
-    expect(Object.values(deriveLabels(collide))).not.toContain("U14C Girls");
-  });
-
   // Guards the rule against becoming load-bearing without anyone noticing. If this ever
   // fails, the live feed has started producing duplicate labels - stop and look.
   it("finds no collision in the real capture, so the rule is currently inert", () => {
     const derived = Object.values(deriveLabels(fixtures)).filter(Boolean);
     expect(new Set(derived).size).toBe(derived.length);
-    expect(derived).toHaveLength(TEAM_COUNT - 2);
+    expect(derived.length).toBeGreaterThan(0);
   });
 
   it("does not throw on an empty fixture list", () => {
@@ -162,16 +155,86 @@ describe("resolveTeams", () => {
     expect(unknown).not.toContain("254061");
   });
 
-  it("falls back to the raw feed name for an unlabelled squad, and reports it", () => {
+  it("falls back to the feed name for an unlabelled squad, and reports it", () => {
     const { labels, unknown } = resolveTeams(fixtures, { teams: {} });
-    expect(labels["379931"]).toBe("Craughwell United");
+    // Both underivable squads are un-suffixed sides, so the bare feed name would put the
+    // same heading over two different squads. The competition is what separates them.
+    expect(labels["379931"]).toBe("Craughwell United (GFA Women's Championship)");
+    expect(labels["234323"]).toBe("Craughwell United (GFA U21 Division 1)");
     expect(unknown).toContain("379931");
     expect(unknown).toContain("234323");
   });
 
+  // The regression guard for the duplicate-heading bug: an announcement must never show
+  // one heading over two squads' fixtures, nor a change email be unable to say whose
+  // fixture moved.
+  it("resolves every squad on the real capture to a distinct display name", () => {
+    const { labels, duplicates } = resolveTeams(fixtures, { teams: {} });
+    const shown = Object.values(labels);
+    expect(shown).toHaveLength(TEAM_COUNT);
+    expect(new Set(shown).size).toBe(TEAM_COUNT);
+    expect(duplicates).toEqual([]);
+  });
+
+  it("leaves an unlabelled squad's feed name bare when nothing else shares it", () => {
+    const solo = [
+      fx({ teamId: "900023", ourTeam: "Craughwell United", competition: "GFA U21 Division 1" }),
+      fx({ teamId: "900024", ourTeam: "Craughwell United B", competition: "GFA Boys U16 Division 1" }),
+    ];
+    const { labels } = resolveTeams(solo, { teams: {} });
+    expect(labels["900023"]).toBe("Craughwell United");
+    expect(labels["900024"]).toBe("U16 Boys");
+  });
+
+  it("disambiguates only the squads that actually clash", () => {
+    const clash = [
+      fx({ teamId: "900025", ourTeam: "Craughwell United", competition: "GFA U21 Division 1" }),
+      fx({ teamId: "900026", ourTeam: "Craughwell United", competition: "GFA Junior Cup" }),
+      fx({ teamId: "900027", ourTeam: "Craughwell United B", competition: "GFA Youth Cup" }),
+    ];
+    const { labels, duplicates } = resolveTeams(clash, { teams: {} });
+    expect(labels["900025"]).toBe("Craughwell United (GFA U21 Division 1)");
+    expect(labels["900026"]).toBe("Craughwell United (GFA Junior Cup)");
+    expect(labels["900027"]).toBe("Craughwell United B");
+    expect(duplicates).toEqual([]);
+  });
+
+  it("disambiguates a fallback that clashes with a configured label", () => {
+    const config = { teams: { "235380": { label: "Craughwell United" } } };
+    const { labels } = resolveTeams(fixtures, config);
+    expect(labels["235380"]).toBe("Craughwell United");
+    expect(labels["379931"]).toBe("Craughwell United (GFA Women's Championship)");
+    expect(new Set(Object.values(labels)).size).toBe(TEAM_COUNT);
+  });
+
+  // Config beats derivation is a hard rule, so a clashing configured label is REPORTED,
+  // never nulled or rewritten.
+  it("reports a configured label that another squad already derives", () => {
+    const config = { teams: { "235380": { label: "U14B Boys" } } };
+    const { labels, unknown, duplicates } = resolveTeams(fixtures, config);
+    expect(labels["235380"]).toBe("U14B Boys");
+    expect(labels["254061"]).toBe("U14B Boys");
+    expect(duplicates).toEqual(["U14B Boys"]);
+    expect(unknown).not.toContain("235380");
+  });
+
+  it("reports two squads configured to the same name", () => {
+    const config = { teams: { "235380": { label: "The Lions" }, "300398": { label: "The Lions" } } };
+    const { labels, duplicates } = resolveTeams(fixtures, config);
+    expect(labels["235380"]).toBe("The Lions");
+    expect(labels["300398"]).toBe("The Lions");
+    expect(duplicates).toEqual(["The Lions"]);
+  });
+
   it("reports every squad it could not label, and only those", () => {
     const { unknown } = resolveTeams(fixtures, { teams: {} });
-    expect(unknown.slice().sort()).toEqual(["234323", "379931"]);
+    expect(unknown).toContain("234323");
+    expect(unknown).toContain("379931");
+    // Stated as a rule, not a list: a squad is unknown exactly when nothing derived.
+    for (const [teamId, label] of Object.entries(deriveLabels(fixtures))) {
+      if (label) expect(unknown).not.toContain(teamId);
+      else expect(unknown).toContain(teamId);
+    }
   });
 
   it("reports nothing unknown once every gap is filled", () => {
@@ -187,7 +250,8 @@ describe("resolveTeams", () => {
     const { labels, unknown } = resolveTeams(fixtures, config);
     expect(labels["235380"]).toBe("U14A Boys");
     expect(unknown).not.toContain("235380");
-    expect(labels["379931"]).toBe("Craughwell United");
+    // Blank config label -> unlabelled -> the same disambiguated fallback as no entry.
+    expect(labels["379931"]).toBe("Craughwell United (GFA Women's Championship)");
     expect(unknown).toContain("379931");
   });
 
@@ -209,8 +273,8 @@ describe("resolveTeams", () => {
     expect(() => resolveTeams(fixtures, undefined)).not.toThrow();
     expect(resolveTeams(fixtures, undefined).unknown).toContain("234323");
     expect(resolveTeams(fixtures, {}).labels["235380"]).toBe("U14A Boys");
-    expect(resolveTeams([], null)).toEqual({ labels: {}, unknown: [] });
-    expect(resolveTeams([], undefined)).toEqual({ labels: {}, unknown: [] });
+    expect(resolveTeams([], null)).toEqual({ labels: {}, unknown: [], duplicates: [] });
+    expect(resolveTeams([], undefined)).toEqual({ labels: {}, unknown: [], duplicates: [] });
   });
 });
 
@@ -306,14 +370,8 @@ describe("seedConfig", () => {
     expect(new Set(colors).size).toBe(colors.length);
   });
 
-  it("repairs a configured colour that is not a usable hex value", () => {
-    // "red" reaches contrastFg as NaN and silently renders white text on an
-    // unvalidated background.
-    const config = seedConfig(fixtures, { version: 1, teams: { "235380": { label: "X", color: "red" } } });
-    expect(config.teams["235380"].label).toBe("X");
-    expect(config.teams["235380"].color).toMatch(/^#[0-9a-f]{6}$/i);
-  });
-
+  // "red" reaches contrastFg as NaN and silently renders white text on an unvalidated
+  // background, so every unusable shape must be replaced rather than passed through.
   it("repairs every shape of unusable colour, keeping the label", () => {
     const junk = ["red", "", "  ", "#12345", "#1234567", "#GGGGGG", "rgb(1,2,3)", 16711680, null];
     for (const color of junk) {

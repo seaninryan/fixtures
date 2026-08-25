@@ -30,6 +30,10 @@ function genderOf(competition) {
 }
 
 // "Craughwell United B" -> "B". The A side carries no suffix at all.
+//
+// "United" is hardcoded, so a club rename stops this finding the letter. That fails
+// LOUDLY, not silently: every side then derives the same letter, the collision rule below
+// nulls all of them, and they surface in resolveTeams' unknown list to be named by hand.
 function letterOf(ourTeam) {
   return /\bUnited\s+([B-Z])$/.exec(String(ourTeam).trim())?.[1] ?? "A";
 }
@@ -88,7 +92,7 @@ function cleanLabel(label) {
   return typeof label === "string" ? label.trim() || null : null;
 }
 
-// -> {labels: {teamId: string}, unknown: teamId[]}
+// -> {labels: {teamId: string}, unknown: teamId[], duplicates: label[]}
 // Config always beats derivation, so a label you set can never be moved by a change in
 // the league's competition naming.
 export function resolveTeams(fixtures, config) {
@@ -103,7 +107,33 @@ export function resolveTeams(fixtures, config) {
     labels[teamId] = label ?? meta.ourTeam;
     if (!label) unknown.push(teamId);
   }
-  return { labels, unknown };
+
+  // The feed names every un-suffixed side "Craughwell United", so two unlabelled squads
+  // fall back to the SAME heading - the duplicate-line failure the collision rule exists
+  // to prevent, arriving by the fallback path instead of the derived one. Qualify a
+  // duplicated fallback with its competition, which is what actually tells them apart.
+  // Only on real duplication: a squad whose feed name is already unique keeps it bare.
+  let counts = tally(labels);
+  for (const teamId of unknown) {
+    if (counts.get(labels[teamId]) > 1) {
+      const meta = teams[teamId];
+      labels[teamId] = `${meta.ourTeam} (${meta.competition})`;
+    }
+  }
+
+  // Whatever is still duplicated is a CONFIGURED label - one the owner set to a name
+  // another squad already resolves to. Config beats derivation is a hard rule, so this is
+  // reported and never rewritten: the caller decides how loudly to say it.
+  counts = tally(labels);
+  const duplicates = [...counts].filter(([, n]) => n > 1).map(([label]) => label);
+  return { labels, unknown, duplicates };
+}
+
+// A Map, not an object: a squad could legitimately be labelled "constructor".
+function tally(map) {
+  const n = new Map();
+  for (const v of Object.values(map)) n.set(v, (n.get(v) ?? 0) + 1);
+  return n;
 }
 
 const HEX6 = /^#[0-9a-f]{6}$/i;
