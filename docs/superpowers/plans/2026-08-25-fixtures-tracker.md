@@ -739,6 +739,7 @@ const { fixtures } = normalizeAll(parse(html).fixtures);
 
 describe("deriveLabels", () => {
   const labels = deriveLabels(fixtures);
+  const squads = teamsFromFixtures(fixtures);
 
   it("letters a squad only when the club runs more than one at that age and gender", () => {
     // The letter comes from the TEAM NAME ("Craughwell United B"), not the division.
@@ -754,13 +755,21 @@ describe("deriveLabels", () => {
   });
 
   it("returns null rather than guessing when the competition name lacks age or gender", () => {
-    expect(labels["238142"]).toBeNull();   // "GFA U16 Division 1"      - no gender
-    expect(labels["234323"]).toBeNull();   // "GFA U21 Division 1"      - no gender
+    expect(labels["234323"]).toBeNull();   // "GFA U21 Division 1"       - no gender
     expect(labels["379931"]).toBeNull();   // "GFA Women's Championship" - no age
   });
 
-  it("labels 13 of the 16 squads", () => {
-    expect(Object.values(labels).filter(Boolean)).toHaveLength(13);
+  // Asserted as a RULE, not a count. The league renames competitions mid-season - on
+  // 2026-08-25 "GFA U16 Division 1" became "GFA U16 Girls Division 1", which moved one
+  // squad from underivable to derivable. A hardcoded "13 of 16" would have failed for
+  // a reason that has nothing to do with this code being wrong.
+  it("labels exactly those squads whose competition names carry both an age and a gender", () => {
+    for (const [teamId, meta] of Object.entries(squads)) {
+      const derivable = /\bU\d{1,2}\b/.test(meta.competition)
+        && /\b(Boys|Girls|Women'?s?|Men'?s?)\b/i.test(meta.competition);
+      if (derivable) expect(labels[teamId]).toMatch(/^U\d{1,2}[A-Z]? (Boys|Girls|Women|Men)$/);
+      else expect(labels[teamId]).toBeNull();
+    }
   });
 });
 
@@ -774,15 +783,13 @@ describe("resolveTeams", () => {
     const { labels, unknown } = resolveTeams(fixtures, { teams: {} });
     expect(labels["379931"]).toBe("Craughwell United");
     expect(unknown).toContain("379931");
-    expect(unknown).toHaveLength(3);
+    expect(unknown).toContain("234323");
   });
 
-  it("reports nothing unknown once the three gaps are filled", () => {
-    const config = { teams: {
-      "238142": { label: "U16 Girls" },
-      "234323": { label: "U21 Boys" },
-      "379931": { label: "Women" },
-    } };
+  it("reports nothing unknown once every gap is filled", () => {
+    // Built from the data so it survives the league renaming a competition.
+    const { unknown: gaps } = resolveTeams(fixtures, { teams: {} });
+    const config = { teams: Object.fromEntries(gaps.map((id) => [id, { label: `Squad ${id}` }])) };
     expect(resolveTeams(fixtures, config).unknown).toEqual([]);
   });
 });
@@ -1843,7 +1850,10 @@ describe("runCheck", () => {
   it("seeds a config covering every squad on a first run", () => {
     const out = runCheck({ html, previous: null, config: null, now: NOW, today: TODAY });
     expect(Object.keys(out.config.teams)).toHaveLength(TEAM_COUNT);
-    expect(out.unknown).toHaveLength(3);
+    // Not a hardcoded count: which squads are underivable changes when the league
+    // renames a competition. Every unknown must be a real squad in the snapshot.
+    expect(out.unknown.every((id) => id in out.config.teams)).toBe(true);
+    expect(out.unknown.every((id) => out.config.teams[id].label === null)).toBe(true);
   });
 
   it("reports no changes when the previous snapshot is identical", () => {
