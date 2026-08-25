@@ -396,12 +396,14 @@ Vitest, node environment, no jsdom — matching both reference projects.
 - `permissions: contents: write` for the snapshot commit. Commit is skipped when
   the working tree is clean, so quiet days add no noise.
 - **Secrets:** `RESEND_API_KEY`, `ALERT_TO_EMAIL`. Both optional.
-- **Repo visibility:** GitHub Pages from a private repo requires a paid plan.
-  The fixture data is already public on galwayfa.ie, so a public repo is the
-  cheap default; secrets are safe either way.
+- **Repo visibility: public** (decided 2026-08-25). The fixture data is already
+  public on galwayfa.ie, so there is nothing to hide, and Pages stays free.
+  `RESEND_API_KEY` and `ALERT_TO_EMAIL` live in GitHub Secrets, which are not
+  exposed by a public repo.
 
 ## Open questions
 
-None blocking. Two owner inputs are handled as data, not code: the three
-unresolved team labels, and the initial colour choices. Both are filled in
-through the config editor after first deploy.
+None. Two owner inputs are handled as data, not code: the three unresolved team
+labels, and the initial colour choices. Confirmed 2026-08-25 that both are to be
+filled in through the config editor after first deploy — so `teams.json` ships
+with all 16 teams present, 13 labelled by derivation and 3 as `label: null`.
