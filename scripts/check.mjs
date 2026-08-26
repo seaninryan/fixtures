@@ -4,13 +4,19 @@
 // Everything decision-shaped lives in src/lib/runCheck.js and is unit-tested. This file
 // only does I/O, and is deliberately dull.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchFixtures } from "../src/lib/fetchFixtures.js";
 import { runCheck } from "../src/lib/runCheck.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const DATA = join(ROOT, "public", "data");
+
+// The snapshots live in their own repo (see src/lib/dataSource.js), so the cron checks
+// that repo out and points DATA_DIR at it. The default keeps a bare local run - the
+// offline rehearsal in the README - writing somewhere harmless and gitignored.
+const DATA = process.env.DATA_DIR
+  ? resolve(process.env.DATA_DIR)
+  : join(ROOT, "public", "data");
 const SITE_URL = process.env.SITE_URL || "https://seaninryan.github.io/fixtures/";
 
 // changes.json is committed and grows one entry per changed day, forever. Keeping a

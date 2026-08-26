@@ -5,3 +5,7 @@ dist
 .env.*.local
 *.local
 coverage
+
+# The snapshots live in their own repo (seaninryan/fixtures-data). A local run writes
+# here so the offline rehearsal in the README keeps working; those files are scratch.
+public/data/

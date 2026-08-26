@@ -1,16 +1,10 @@
 name: deploy
 
+# Code only. The site reads its JSON from the data repo at runtime, so a new snapshot
+# needs no deploy - see src/lib/dataSource.js.
 on:
   push:
     branches: [main]
-  # A push made with GITHUB_TOKEN never triggers another workflow, so the daily
-  # snapshot commit from `check` would otherwise leave the site serving yesterday's
-  # JSON forever - public/data is copied into dist at BUILD time, so new data needs
-  # a new build. workflow_run fires whoever pushed. It also fires on runs that
-  # changed nothing, which is a cheap no-op rebuild rather than a problem.
-  workflow_run:
-    workflows: [check]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -25,8 +19,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Never publish off a check run that aborted: a failed fetch means no snapshot.
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { teamsFromFixtures, resolveTeams } from "../lib/teams.js";
 import { squadColor } from "../lib/squadColors.js";
-
-const EDIT_URL =
-  "https://github.com/seaninryan/fixtures/edit/main/public/data/teams.json";
+import { EDIT_TEAMS_URL } from "../lib/dataSource.js";
 
 // The site is static, so it cannot write to the repo. Editing is therefore
 // edit-here / copy / paste-on-GitHub. See the spec's "Config editing" section.
@@ -52,7 +50,7 @@ export default function SquadsTab({ fixtures, config, onChange }) {
       })}
       <div className="row">
         <button className="primary" onClick={copy}>{copied ? "Copied" : "Copy JSON"}</button>
-        <a className="chip" href={EDIT_URL} target="_blank" rel="noreferrer">Edit on GitHub</a>
+        <a className="chip" href={EDIT_TEAMS_URL} target="_blank" rel="noreferrer">Edit on GitHub</a>
       </div>
     </section>
   );

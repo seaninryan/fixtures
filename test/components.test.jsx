@@ -77,6 +77,7 @@ describe("SquadsTab", () => {
       <SquadsTab fixtures={fixtures} config={config} onChange={() => {}} />,
     );
     expect(html).toContain("github.com");
-    expect(html).toContain("public/data/teams.json");
+    // teams.json lives in the DATA repo now, at its root - not in this repo's public/.
+    expect(html).toContain("fixtures-data/edit/main/teams.json");
   });
 });

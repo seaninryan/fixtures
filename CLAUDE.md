@@ -22,6 +22,7 @@ npm run build                                # catches JSX errors tests cannot
 FIXTURES_HTML_FILE=test/fixtures/club2960.html node scripts/check.mjs   # offline run
 node scripts/check.mjs --dry-run                                        # no writes, no email
 ALLOW_SHRINK=1 node scripts/check.mjs                                   # genuine collapse
+DATA_DIR=../fixtures-data node scripts/check.mjs                        # write to the data repo
 ```
 
 ## What this is
@@ -30,6 +31,13 @@ A fixtures tracker for one club (Galway FA club id **2960**, Craughwell United).
 Two jobs: a copyable announcement for club members, and change alerts by email.
 A GitHub Action does the work daily; GitHub Pages serves a static React site over
 the JSON the Action commits. No server, no database, no auth.
+
+**The work is split over two repos.** This one is code. The snapshots live in
+`seaninryan/fixtures-data`, and so does the cron workflow that produces them — a
+workflow's `GITHUB_TOKEN` only writes to its own repo, so running it there needs no
+long-lived token. It checks this repo out read-only for the code. `scripts/check.mjs`
+is here, the workflow that calls it is there: changing the script's env contract
+(`DATA_DIR`, `FIXTURES_HTML_FILE`, `ALLOW_SHRINK`) means editing the other repo.
 
 ## Architecture
 
@@ -42,10 +50,13 @@ lives in a unit-tested pure function; new derivations belong in lib with tests.
 - `announce.js` is imported by **both** the site and `check.mjs`, so what you copy
   out of the app and what the email quotes cannot drift.
 
-The data directory is **`public/data/`**, not `data/`, so Vite serves the JSON to
-the site with no copy step. That JSON is copied into `dist` at build time, which is
-why `deploy.yml` also runs on `workflow_run` of `check` — a GITHUB_TOKEN push does
-not trigger a workflow, so without it new data would never reach the site.
+`src/lib/dataSource.js` is the single place that knows where the JSON lives. The site
+fetches it from `raw.githubusercontent.com` at **runtime**, so new fixtures appear
+without a deploy and `deploy.yml` needs no data trigger. That host is the only
+github.com host that sends `Access-Control-Allow-Origin: *`; the prettier
+`github.com/<owner>/<repo>/raw/...` URL 302s to it and the redirect has no CORS
+headers, so the browser refuses it. `public/data/` is gitignored local scratch for
+offline runs.
 
 ## Invariants
 
@@ -62,6 +73,8 @@ not trigger a workflow, so without it new data would never reach the site.
 - **Times are strings, never `Date` objects.** A UTC round-trip moves every
   kick-off by an hour for half the year.
 - **`parse.js` never throws.** One bad block costs that block.
+- **A missing `latest.json` is an error state, not a spinner.** The site reads it
+  across origins, so failure is a real path and must be visible.
 - **Counts are measured, never hardcoded.** The league adds and renames squads
   mid-season; tests assert rules, not totals.
 
