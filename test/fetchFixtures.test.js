@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { fetchFixtures, FIXTURES_URL, REFERER, USER_AGENT } from "../src/lib/fetchFixtures.js";
+import {
+  fetchFixtures, FIXTURES_URL, FIXTURES_BODY, REFERER, USER_AGENT,
+} from "../src/lib/fetchFixtures.js";
 
 const okResponse = (body = "<ul>") => ({ ok: true, status: 200, text: async () => body });
 
@@ -36,13 +38,24 @@ describe("fetchFixtures", () => {
   // --- hardening beyond the baseline ---
 
   it("asks the right club, competition-wide, for fixtures rather than results", () => {
-    // Every query parameter here is load-bearing; a silent edit would fetch the wrong
-    // club or the results list, and the diff would report the whole season as changed.
-    expect(FIXTURES_URL).toContain("club_id=2960");
-    expect(FIXTURES_URL).toContain("action=fixtures");
-    expect(FIXTURES_URL).toContain("displayResults=");
-    expect(FIXTURES_URL).toMatch(/^https:\/\/galwayfa\.ie\/wp-admin\/admin-ajax\.php\?/);
+    // Every parameter here is load-bearing; a silent edit would fetch the wrong club or
+    // the results list, and the diff would report the whole season as changed.
+    expect(FIXTURES_BODY).toContain("club_id=2960");
+    expect(FIXTURES_BODY).toContain("action=fixtures");
+    expect(FIXTURES_BODY).toContain("displayResults=");
+    expect(FIXTURES_URL).toBe("https://galwayfa.ie/wp-admin/admin-ajax.php");
     expect(REFERER).toContain("/clubprofile/2960/");
+  });
+
+  // THE RULE THAT COST A GREEN BUILD. The parameters must travel in the BODY.
+  // With them in the query string CloudFront's WAF answers "Request blocked." to a
+  // datacenter IP - a GitHub runner - while still serving a residential one, so this
+  // passed every local test and failed the moment it ran in CI. Identical response
+  // either way; the same path with ?action=heartbeat is fine. It is the query string
+  // the rule inspects.
+  it("carries no query string, because the WAF inspects it", () => {
+    expect(FIXTURES_URL).not.toContain("?");
+    expect(FIXTURES_URL).not.toContain("club_id");
   });
 
   it("identifies itself as a browser XHR, which is what gets past the WAF", async () => {
@@ -79,9 +92,12 @@ describe("fetchFixtures", () => {
     await expect(fetchFixtures(fake)).resolves.toBe("");
   });
 
-  it("sends no request body", async () => {
+  it("sends the parameters as a form-encoded body, the way the site's own XHR does", async () => {
     const fake = vi.fn().mockResolvedValue(okResponse());
     await fetchFixtures(fake);
-    expect(fake.mock.calls[0][1].body).toBeUndefined();
+    const [url, init] = fake.mock.calls[0];
+    expect(url).not.toContain("?");
+    expect(init.body).toBe(FIXTURES_BODY);
+    expect(init.headers["Content-Type"]).toMatch(/^application\/x-www-form-urlencoded/);
   });
 });
