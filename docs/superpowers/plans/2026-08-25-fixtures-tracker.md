@@ -2881,7 +2881,8 @@ no PAT. See the spec's AMENDED sections and `src/lib/dataSource.js`.
 
 ### Still unverified
 
-Interaction. The component tests are SSR-only (node environment, no jsdom), so the
+Interaction, and only interaction - the fetch, the diff, the snapshot commit, the
+deploy and the alert email have all now run for real. The component tests are SSR-only (node environment, no jsdom), so the
 tab switching, the four window chips, both Copy buttons and the Squads colour picker
 have never been exercised by a click. The headless render confirms first paint and
 the cross-origin fetch, nothing more. The logic behind the window chips is covered
@@ -2894,8 +2895,13 @@ by `announce.test.js`; `navigator.clipboard` is not testable without a browser.
    `teams.json` in the data repo.
 2. **Emoji colour squares**: only 8 squares for 19 squads, so several share one.
    Off by default. Keep the toggle or drop it?
-3. **Email alerts are off.** Set `RESEND_API_KEY` and `ALERT_TO_EMAIL` as secrets on
-   the DATA repo (that is where the cron runs) to turn them on.
+3. **Email alerts are ON and verified** (2026-08-26). `RESEND_API_KEY` and
+   `ALERT_TO_EMAIL` are set on the DATA repo, and a rehearsal - a faked kick-off time
+   in the baseline, diffed against the live feed - delivered
+   `Craughwell fixtures: 1 change (1 moved)`. The sender is still the default
+   `fixtures@resend.dev`, which Resend delivers ONLY to the account owner's own
+   address. To mail anyone else (a club secretary, a group address), verify a domain
+   and set `ALERT_FROM_EMAIL` to an address on it.
 
 ### To resume
 
