@@ -2835,3 +2835,56 @@ has expected output.
 (Task 14). `SEVERITY` is defined once in `diff.js` and imported by `changeReport.js`.
 `PALETTE` is defined once in `squadColors.js` and imported by `teams.js`.
 `CLUB_ID` is defined once in `parse.js` and imported by `normalize.js`.
+
+---
+
+## Progress (updated 2026-08-26)
+
+Branch: `build-fixtures-tracker`. No remote yet — nothing has been pushed.
+
+**Done: Tasks 1-13.** 364 tests green across 10 files. `npm test` is the check.
+
+| Task | State |
+|---|---|
+| 1 scaffold | done |
+| 2 golden capture | done - **49 fixtures, 19 squads** (not the plan's original 43/16) |
+| 3 `parse.js` | done - 15 tests. Two real bugs fixed post-review |
+| 4 `normalize.js` | done - 40 tests. Rejects impossible dates |
+| 5 `squadColors.js` | done - 17 tests. Contrast threshold 122, not 150 |
+| 6 `teams.js` | done - 45 tests. Collision + duplicate-fallback handling |
+| 7 `window.js` | done - 26 tests |
+| 8 `diff.js` | done - 71 tests |
+| 9 `announce.js` | done - 38 tests |
+| 10 `changeReport.js` | done - 44 tests |
+| 11 `fetchFixtures.js` | done - 11 tests |
+| 12 `runCheck.js` | done - 57 tests. Abort-on-empty AND abort-on-collapse |
+| 13 `scripts/check.mjs` | done - offline mode, dry-run, history cap, ALLOW_SHRINK |
+| **14 the site** | **NEXT - not started** |
+| 15 CI workflows | not started |
+| 16 README + CLAUDE.md | not started |
+| 17 live run + deploy | not started - **needs the owner's go-ahead** (gh repo create, Pages) |
+
+### Corrections applied to this plan while executing
+
+- Counts are measured, not hardcoded: the league added 3 squads and renamed
+  `GFA U16 Division 1` to `GFA U16 Girls Division 1` mid-build. Tests assert rules.
+- `PALETTE` extended 16 -> 24 (19 squads need >= 19 distinct colours).
+- Labels resolve over ALL fixtures, never a filtered subset - this bug appeared three
+  times (`announce.js`, `changeReport.js`, the `runCheck` call site).
+- `runCheck` gained a partial-loss guard: abort if the fixture count halves.
+
+### Outstanding owner decisions (neither blocks Tasks 14-16)
+
+1. **Two squads still need labels:** `234323` (GFA U21 Division 1) and `379931`
+   (GFA Women's Championship). They currently render as
+   `Craughwell United (GFA U21 Division 1)` in announcements - correct but wordy.
+2. **Emoji colour squares**: only 8 squares for 19 squads, so several share one.
+   Off by default. Keep the toggle or drop it?
+
+### To resume
+
+    export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$PATH"
+    cd ~/workspace/fixtures && npm test          # expect 364 passing
+    FIXTURES_HTML_FILE=test/fixtures/club2960.html node scripts/check.mjs
+
+Then continue from Task 14 in this document.
