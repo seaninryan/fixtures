@@ -82,14 +82,13 @@ export default function App() {
 
   if (gate !== "ok") {
     return (
-      <main className="wrap">
-        <h1>Craughwell United</h1>
-        <div className="card">
-          {gate === "not-owner"
-            ? <p>That account does not have access to this site.</p>
-            : <p className="dim">This site is private.</p>}
-          <button className="primary" onClick={() => check(true)}>Sign in with Google</button>
-        </div>
+      <main className="gate">
+        {/* Nothing but the button. The wrong-account line stays, though: without it a
+            second click just reopens the popup and looks like the site is broken. */}
+        {gate === "not-owner"
+          ? <p className="dim">That account does not have access to this site.</p>
+          : null}
+        <button className="primary" onClick={() => check(true)}>Sign in with Google</button>
       </main>
     );
   }
