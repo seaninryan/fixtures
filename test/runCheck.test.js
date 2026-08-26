@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync } from "node:fs";
-import { runCheck } from "../src/lib/runCheck.js";
+import { runCheck, SHRINK_LIMIT } from "../src/lib/runCheck.js";
 import { FIXTURE_COUNT, TEAM_COUNT } from "./fixtures/meta.js";
 
 const html = readFileSync(new URL("./fixtures/club2960.html", import.meta.url), "utf8");
@@ -8,8 +8,12 @@ const NOW = "2026-08-25T06:00:11Z";
 const TODAY = "2026-08-25";
 
 // One run of the real capture from cold. Used as the starting point for almost every
-// scenario below, so it is built once and never mutated.
-const first = runCheck({ html, previous: null, config: null, now: NOW, today: TODAY });
+// scenario below, so it is built once and never mutated. Built in a hook rather than at
+// module load so that a regression here fails tests instead of failing collection.
+let first;
+beforeAll(() => {
+  first = runCheck({ html, previous: null, config: null, now: NOW, today: TODAY });
+});
 
 // A previous snapshot built by editing the real one, so the only differences are the
 // ones the test is about.
@@ -270,13 +274,14 @@ describe("runCheck resilience", () => {
 
 describe("runCheck on a busy morning", () => {
   // A realistic mix: a kick-off moved, a venue switched, a fixture added and one cancelled.
-  const moved = first.snapshot.fixtures[0];
-  const venue = first.snapshot.fixtures[5];
-  const added = first.snapshot.fixtures[9];
-  const ghost = { ...first.snapshot.fixtures[2], fid: "8888888", date: "2026-11-11", time: "10:30" };
+  let out;
+  beforeAll(() => {
+    const moved = first.snapshot.fixtures[0];
+    const venue = first.snapshot.fixtures[5];
+    const added = first.snapshot.fixtures[9];
+    const ghost = { ...first.snapshot.fixtures[2], fid: "8888888", date: "2026-11-11", time: "10:30" };
 
-  const previous = prevWith((fs) =>
-    [
+    const previous = prevWith((fs) => [
       ...fs
         .filter((f) => f.fid !== added.fid)
         .map((f) => {
@@ -287,7 +292,8 @@ describe("runCheck on a busy morning", () => {
       ghost,
     ]);
 
-  const out = runCheck({ html, previous, config: first.config, now: NOW, today: TODAY, history: [] });
+    out = runCheck({ html, previous, config: first.config, now: NOW, today: TODAY, history: [] });
+  });
 
   it("reports every change once, most disruptive first", () => {
     expect(out.changes).toHaveLength(4);
@@ -309,5 +315,106 @@ describe("runCheck on a busy morning", () => {
   it("still writes the full new snapshot", () => {
     expect(out.snapshot.fixtures).toHaveLength(FIXTURE_COUNT);
     expect(out.snapshot.fetchedAt).toBe(NOW);
+  });
+});
+
+// The likelier failure: the league tweaks their markup, MOST blocks stop matching, and the
+// owner is emailed dozens of cancellations that never happened.
+describe("runCheck aborts when the fixture count collapses", () => {
+  // Every fid in the capture is unique, so blanking one kills exactly that block.
+  const fids = [...html.matchAll(/data-fid="(\d+)"/g)].map((m) => m[1]);
+
+  // The real capture with all but the first `n` fixture blocks broken.
+  const keepingOnly = (n) =>
+    fids.slice(n).reduce((acc, fid) => acc.replace(`data-fid="${fid}"`, 'data-fid=""'), html);
+
+  const run = (opts) =>
+    runCheck({ previous: first.snapshot, config: first.config, now: NOW, today: TODAY, ...opts });
+
+  it("blanks exactly as many blocks as asked, so these tests mean what they say", () => {
+    expect(fids).toHaveLength(FIXTURE_COUNT);
+    const out = runCheck({ html: keepingOnly(30), previous: null, config: null, now: NOW, today: TODAY });
+    expect(out.snapshot.fixtures).toHaveLength(30);
+    expect(out.errors).toHaveLength(FIXTURE_COUNT - 30);
+  });
+
+  it("ABORTS when 49 fixtures collapse to 24", () => {
+    let escaped = "untouched";
+    expect(() => {
+      escaped = run({ html: keepingOnly(24) });
+    }).toThrow(/collapsed/i);
+    expect(escaped).toBe("untouched");
+  });
+
+  it("names both counts so the log says what happened", () => {
+    expect(() => run({ html: keepingOnly(24) })).toThrow(/from 49 to 24/);
+  });
+
+  it("tells the operator how to force a genuine collapse through", () => {
+    expect(() => run({ html: keepingOnly(24) })).toThrow(/allowShrink/);
+  });
+
+  // The threshold is deliberate, not incidental: 25 of 49 is above half and gets through.
+  it("allows a shrink to just above the limit", () => {
+    const out = run({ html: keepingOnly(25) });
+    expect(out.snapshot.fixtures).toHaveLength(25);
+  });
+
+  it("pins the limit at half", () => {
+    expect(SHRINK_LIMIT).toBe(0.5);
+    expect(25).toBeGreaterThanOrEqual(FIXTURE_COUNT * SHRINK_LIMIT);
+    expect(24).toBeLessThan(FIXTURE_COUNT * SHRINK_LIMIT);
+  });
+
+  it("lets a collapse through with allowShrink, and writes the smaller snapshot", () => {
+    const out = run({ html: keepingOnly(24), allowShrink: true });
+    expect(out.snapshot.fixtures).toHaveLength(24);
+    expect(out.changes.length).toBeGreaterThan(0);
+    expect(out.changes.every((c) => c.type === "cancelled")).toBe(true);
+  });
+
+  it("still aborts on zero fixtures even with allowShrink - the more specific rule wins", () => {
+    expect(() => run({ html: "<html>blocked</html>", allowShrink: true })).toThrow(/no fixtures/i);
+  });
+
+  it("uses the zero-fixtures message, not the collapse one, for a total failure", () => {
+    expect(() => run({ html: "<html>blocked</html>" })).toThrow(/no fixtures/i);
+    expect(() => run({ html: "<html>blocked</html>" })).not.toThrow(/collapsed/i);
+  });
+
+  it("does not abort on a first run - there is no baseline to shrink from", () => {
+    const out = runCheck({ html: keepingOnly(3), previous: null, config: null, now: NOW, today: TODAY });
+    expect(out.snapshot.fixtures).toHaveLength(3);
+    expect(out.firstRun).toBe(true);
+  });
+
+  it("does not abort against a previous snapshot that holds no fixtures", () => {
+    const previous = { version: 1, fetchedAt: "2026-08-24T06:00:00Z", fixtures: [] };
+    const out = runCheck({ html: keepingOnly(3), previous, config: first.config, now: NOW, today: TODAY });
+    expect(out.snapshot.fixtures).toHaveLength(3);
+  });
+
+  it("does not abort on the ordinary shrink of a season being played out", () => {
+    const out = run({ html: keepingOnly(FIXTURE_COUNT - 4) });
+    expect(out.snapshot.fixtures).toHaveLength(FIXTURE_COUNT - 4);
+    expect(out.changes).toHaveLength(4);
+    expect(out.changes.every((c) => c.type === "cancelled")).toBe(true);
+  });
+
+  // The actual scenario: a markup change most blocks no longer match.
+  it("ABORTS rather than emailing mass cancellations when the markup changes under it", () => {
+    const broken = keepingOnly(6);
+    // Sanity: without the guard this run would report 43 cancellations.
+    const wouldBe = runCheck({ html: broken, previous: null, config: null, now: NOW, today: TODAY });
+    expect(wouldBe.snapshot.fixtures).toHaveLength(6);
+    expect(() => run({ html: broken })).toThrow(/collapsed from 49 to 6/);
+  });
+
+  it("leaves the previous snapshot and config untouched when it aborts", () => {
+    const snapshotBefore = JSON.stringify(first.snapshot);
+    const configBefore = JSON.stringify(first.config);
+    expect(() => run({ html: keepingOnly(2) })).toThrow(/collapsed/i);
+    expect(JSON.stringify(first.snapshot)).toBe(snapshotBefore);
+    expect(JSON.stringify(first.config)).toBe(configBefore);
   });
 });
