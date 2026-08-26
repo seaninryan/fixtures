@@ -2842,7 +2842,8 @@ has expected output.
 
 Branch: `build-fixtures-tracker`. No remote yet — nothing has been pushed.
 
-**Done: Tasks 1-13.** 364 tests green across 10 files. `npm test` is the check.
+**Done: Tasks 1-16, plus Task 17 steps 1-3.** 371 tests green across 11 files.
+`npm test` is the check.
 
 | Task | State |
 |---|---|
@@ -2859,21 +2860,54 @@ Branch: `build-fixtures-tracker`. No remote yet — nothing has been pushed.
 | 11 `fetchFixtures.js` | done - 11 tests |
 | 12 `runCheck.js` | done - 57 tests. Abort-on-empty AND abort-on-collapse |
 | 13 `scripts/check.mjs` | done - offline mode, dry-run, history cap, ALLOW_SHRINK |
-| **14 the site** | **NEXT - not started** |
-| 15 CI workflows | not started |
-| 16 README + CLAUDE.md | not started |
-| 17 live run + deploy | not started - **needs the owner's go-ahead** (gh repo create, Pages) |
+| 14 the site | done - 7 SSR tests. Label-scope bug found and fixed |
+| 15 CI workflows | done - deploy also triggers on `workflow_run` of `check` |
+| 16 README + CLAUDE.md | done |
+| **17 live run + deploy** | **steps 1-3 done. Steps 4-7 need the owner** |
 
 ### Corrections applied to this plan while executing
 
 - Counts are measured, not hardcoded: the league added 3 squads and renamed
   `GFA U16 Division 1` to `GFA U16 Girls Division 1` mid-build. Tests assert rules.
 - `PALETTE` extended 16 -> 24 (19 squads need >= 19 distinct colours).
-- Labels resolve over ALL fixtures, never a filtered subset - this bug appeared three
-  times (`announce.js`, `changeReport.js`, the `runCheck` call site).
+- Labels resolve over ALL fixtures, never a filtered subset - this bug appeared FOUR
+  times (`announce.js`, `changeReport.js`, the `runCheck` call site, and `ChangesTab`,
+  which resolved over one run's changed fixtures and so dropped the A/B letter).
 - `runCheck` gained a partial-loss guard: abort if the fixture count halves.
+- `deploy.yml` also triggers on `workflow_run` of `check`. A push made with
+  GITHUB_TOKEN never triggers another workflow, and `public/data` is copied into
+  `dist` at build time, so the plan as written would have committed each daily
+  snapshot to git and never redeployed the site.
 
-### Outstanding owner decisions (neither blocks Tasks 14-16)
+### Task 17: what has been done, and what has not
+
+Done locally:
+
+- `npm test` — 371 passing.
+- One real run against the LIVE endpoint: **49 fixtures, 1 change** (the U21
+  fixture on 2026-10-07 moved from Ros A Mhil to Carraroe Astro). No 403, so the
+  WAF headers in `fetchFixtures.js` are still right.
+- The live snapshot is committed (`chore: first live fixtures snapshot`).
+- The built site was served with `vite preview` and checked: `/fixtures/` and all
+  three `/fixtures/data/*.json` return 200.
+
+NOT done — these need the owner's go-ahead, because they publish the repo:
+
+- `gh repo create fixtures --public --source=. --remote=origin --push`
+- Settings -> Pages -> Source -> GitHub Actions
+- `gh workflow run check.yml`
+- `gh secret set RESEND_API_KEY` / `ALERT_TO_EMAIL` (optional; email is off until set)
+
+Also note the work is on `build-fixtures-tracker` while `deploy.yml` triggers on
+pushes to `main`, so the branch has to be merged or the trigger changed.
+
+### Interaction not yet verified
+
+Component tests are SSR-only (node environment, no jsdom), so the window buttons,
+both Copy buttons and the Squads colour picker have never been exercised. First
+thing to click after the site is up.
+
+### Outstanding owner decisions (neither blocks anything)
 
 1. **Two squads still need labels:** `234323` (GFA U21 Division 1) and `379931`
    (GFA Women's Championship). They currently render as
@@ -2884,7 +2918,7 @@ Branch: `build-fixtures-tracker`. No remote yet — nothing has been pushed.
 ### To resume
 
     export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$PATH"
-    cd ~/workspace/fixtures && npm test          # expect 364 passing
+    cd ~/workspace/fixtures && npm test          # expect 371 passing
     FIXTURES_HTML_FILE=test/fixtures/club2960.html node scripts/check.mjs
 
-Then continue from Task 14 in this document.
+Then finish Task 17 from step 4 in this document.
