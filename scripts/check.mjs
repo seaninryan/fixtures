@@ -73,6 +73,15 @@ async function sendEmail(report) {
     console.log("email not configured (RESEND_API_KEY / ALERT_TO_EMAIL) - skipping");
     return;
   }
+  // ANY resend.dev sender may only deliver to the address on the Resend account itself;
+  // anything else comes back 403. That is fine for a personal alert and a dead end for
+  // sending to the club, so say it here rather than leave it to an error nobody reads.
+  if (from.endsWith("@resend.dev")) {
+    console.log(
+      `from ${from}: resend.dev delivers only to your own Resend account address. ` +
+      "Set ALERT_FROM_EMAIL to an address on a verified domain to reach anyone else.",
+    );
+  }
   if (DRY_RUN) {
     console.log(`would email ${to}: ${report.subject} - dry run`);
     return;

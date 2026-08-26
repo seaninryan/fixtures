@@ -33,7 +33,7 @@ where the cron runs:
 |---|---|
 | `RESEND_API_KEY` | From the Resend dashboard (the same account as sideline). |
 | `ALERT_TO_EMAIL` | Where alerts go. |
-| `ALERT_FROM_EMAIL` | Optional. Defaults to `fixtures@resend.dev`. |
+| `ALERT_FROM_EMAIL` | Defaults to `fixtures@resend.dev`, which Resend will only deliver to the address on your own Resend account. To mail anyone else, verify a domain and set this to an address on it. |
 
 ## Local development
 
