@@ -35,13 +35,25 @@ that loads fixtures by AJAX on `document.ready`:
 
 ```
 POST https://galwayfa.ie/wp-admin/admin-ajax.php
-     ?action=fixtures&club_id=2960&competition_id=&team_id=&displayResults=
+     body: action=fixtures&club_id=2960&competition_id=&team_id=&displayResults=
 ```
 
 **The WAF blocks default client user-agents.** A plain `curl` POST returns a
 CloudFront `403 ERROR / Request blocked`. The same request with a browser
 `User-Agent` plus `Referer: https://galwayfa.ie/clubprofile/2960/` returns 200
 and ~240KB of HTML. Any fetch code must send those headers.
+
+**AMENDED 2026-08-26 — the parameters must travel in the BODY, not the query
+string.** Written as a query string (as this spec originally had it) the request
+succeeds from a residential connection and is refused from a datacenter one, so it
+passed every local test and 403'd the first time the cron ran on a GitHub runner.
+Probed from a runner: the club page returns 200, so the site is not blocking those
+IPs; `admin-ajax.php?action=heartbeat` returns 200, so the path is not blocked;
+the body says `Request blocked.`, which is a WAF rule rather than CloudFront
+geo-restriction; and the same parameters moved into a form-encoded POST body
+return 200. The response is byte-identical either way — 272,955 bytes, 49
+fixtures. The rule inspects the query string. A browser's `$.post` sends a body;
+match the browser, and add `Content-Type: application/x-www-form-urlencoded`.
 
 **The fetch cannot happen in the browser.** The endpoint sends no CORS headers,
 so a `fetch` from a GitHub Pages origin is blocked regardless of user-agent.
@@ -400,6 +412,26 @@ Vitest, node environment, no jsdom — matching both reference projects.
   public on galwayfa.ie, so there is nothing to hide, and Pages stays free.
   `RESEND_API_KEY` and `ALERT_TO_EMAIL` live in GitHub Secrets, which are not
   exposed by a public repo.
+
+**AMENDED 2026-08-26 — two repos, not one** (decided by the owner). The snapshots
+live in `seaninryan/fixtures-data`; the code lives in `seaninryan/fixtures`. Three
+consequences, all of them load-bearing:
+
+- **The site reads the JSON at runtime** from `raw.githubusercontent.com`, the only
+  github.com host that sends `Access-Control-Allow-Origin: *`. So a new snapshot
+  reaches the site with no rebuild, and `deploy.yml` needs no data trigger.
+  `src/lib/dataSource.js` is the only place that knows the location.
+- **The cron lives in the data repo**, because that is the repo it writes to: a
+  workflow's `GITHUB_TOKEN` writes only to its own repo, so this needs no
+  long-lived PAT to expire and silently break the cron. It checks the code repo
+  out read-only. `scripts/check.mjs` and the workflow that calls it are therefore
+  versioned apart — change the script's env contract (`DATA_DIR`) and change the
+  other repo too.
+- **The email secrets belong to the data repo**, where the cron runs.
+
+Everything this spec says about `data/*.json` still holds; the files are simply at
+the root of the data repo rather than in `data/` here. Locally they are written to
+`public/data/`, which is gitignored scratch for offline runs.
 
 ## Open questions
 

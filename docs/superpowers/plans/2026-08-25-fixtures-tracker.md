@@ -2840,30 +2840,27 @@ has expected output.
 
 ## Progress (updated 2026-08-26)
 
-Branch: `build-fixtures-tracker`. No remote yet — nothing has been pushed.
+**All 17 tasks done. The tracker is live.** 380 tests green across 12 files.
 
-**Done: Tasks 1-16, plus Task 17 steps 1-3.** 371 tests green across 11 files.
-`npm test` is the check.
+- Site: https://seaninryan.github.io/fixtures/ (verified rendering live data in a
+  headless Chrome, not just built)
+- Code: https://github.com/seaninryan/fixtures — `main`, Pages source = GitHub Actions
+- Data: https://github.com/seaninryan/fixtures-data — snapshots + the daily cron
 
 | Task | State |
 |---|---|
-| 1 scaffold | done |
-| 2 golden capture | done - **49 fixtures, 19 squads** (not the plan's original 43/16) |
-| 3 `parse.js` | done - 15 tests. Two real bugs fixed post-review |
-| 4 `normalize.js` | done - 40 tests. Rejects impossible dates |
-| 5 `squadColors.js` | done - 17 tests. Contrast threshold 122, not 150 |
-| 6 `teams.js` | done - 45 tests. Collision + duplicate-fallback handling |
-| 7 `window.js` | done - 26 tests |
-| 8 `diff.js` | done - 71 tests |
-| 9 `announce.js` | done - 38 tests |
-| 10 `changeReport.js` | done - 44 tests |
-| 11 `fetchFixtures.js` | done - 11 tests |
-| 12 `runCheck.js` | done - 57 tests. Abort-on-empty AND abort-on-collapse |
-| 13 `scripts/check.mjs` | done - offline mode, dry-run, history cap, ALLOW_SHRINK |
+| 1-13 | done (see the commit log; 364 tests at that point) |
 | 14 the site | done - 7 SSR tests. Label-scope bug found and fixed |
-| 15 CI workflows | done - deploy also triggers on `workflow_run` of `check` |
+| 15 CI workflows | done - `deploy.yml` here, `check.yml` in the data repo |
 | 16 README + CLAUDE.md | done |
-| **17 live run + deploy** | **steps 1-3 done. Steps 4-7 need the owner** |
+| 17 live run + deploy | done - both repos created, Pages on, cron run by hand and green |
+
+### Two repos (owner's decision, 2026-08-26)
+
+The snapshots moved out of `public/data` into `seaninryan/fixtures-data`. The site
+fetches them from `raw.githubusercontent.com` at RUNTIME, so new fixtures need no
+deploy, and the cron lives in the data repo because that is the repo it writes to -
+no PAT. See the spec's AMENDED sections and `src/lib/dataSource.js`.
 
 ### Corrections applied to this plan while executing
 
@@ -2874,51 +2871,34 @@ Branch: `build-fixtures-tracker`. No remote yet — nothing has been pushed.
   times (`announce.js`, `changeReport.js`, the `runCheck` call site, and `ChangesTab`,
   which resolved over one run's changed fixtures and so dropped the A/B letter).
 - `runCheck` gained a partial-loss guard: abort if the fixture count halves.
-- `deploy.yml` also triggers on `workflow_run` of `check`. A push made with
-  GITHUB_TOKEN never triggers another workflow, and `public/data` is copied into
-  `dist` at build time, so the plan as written would have committed each daily
-  snapshot to git and never redeployed the site.
+- **The fetch parameters travel in the POST body, not the query string.** The plan and
+  the spec both had a query string, which works from a residential IP and is refused
+  from a datacenter one - so it passed every local test and 403'd on the first cron
+  run. The WAF rule inspects the query string; the response is byte-identical either
+  way. This is the one finding here most likely to be undone by a well-meaning tidy-up.
+- `App.jsx` has a real failure state. The data is cross-origin now, so offline, a
+  rate-limited CDN or an unreachable data repo are live paths rather than theory.
 
-### Task 17: what has been done, and what has not
+### Still unverified
 
-Done locally:
-
-- `npm test` — 371 passing.
-- One real run against the LIVE endpoint: **49 fixtures, 1 change** (the U21
-  fixture on 2026-10-07 moved from Ros A Mhil to Carraroe Astro). No 403, so the
-  WAF headers in `fetchFixtures.js` are still right.
-- The live snapshot is committed (`chore: first live fixtures snapshot`).
-- The built site was served with `vite preview` and checked: `/fixtures/` and all
-  three `/fixtures/data/*.json` return 200.
-
-NOT done — these need the owner's go-ahead, because they publish the repo:
-
-- `gh repo create fixtures --public --source=. --remote=origin --push`
-- Settings -> Pages -> Source -> GitHub Actions
-- `gh workflow run check.yml`
-- `gh secret set RESEND_API_KEY` / `ALERT_TO_EMAIL` (optional; email is off until set)
-
-Also note the work is on `build-fixtures-tracker` while `deploy.yml` triggers on
-pushes to `main`, so the branch has to be merged or the trigger changed.
-
-### Interaction not yet verified
-
-Component tests are SSR-only (node environment, no jsdom), so the window buttons,
-both Copy buttons and the Squads colour picker have never been exercised. First
-thing to click after the site is up.
+Interaction. The component tests are SSR-only (node environment, no jsdom), so the
+tab switching, the four window chips, both Copy buttons and the Squads colour picker
+have never been exercised by a click. The headless render confirms first paint and
+the cross-origin fetch, nothing more. The logic behind the window chips is covered
+by `announce.test.js`; `navigator.clipboard` is not testable without a browser.
 
 ### Outstanding owner decisions (neither blocks anything)
 
 1. **Two squads still need labels:** `234323` (GFA U21 Division 1) and `379931`
-   (GFA Women's Championship). They currently render as
-   `Craughwell United (GFA U21 Division 1)` in announcements - correct but wordy.
+   (GFA Women's Championship). Edit them in the Squads tab, or directly in
+   `teams.json` in the data repo.
 2. **Emoji colour squares**: only 8 squares for 19 squads, so several share one.
    Off by default. Keep the toggle or drop it?
+3. **Email alerts are off.** Set `RESEND_API_KEY` and `ALERT_TO_EMAIL` as secrets on
+   the DATA repo (that is where the cron runs) to turn them on.
 
 ### To resume
 
     export PATH="$HOME/.nvm/versions/node/v20.20.2/bin:$PATH"
-    cd ~/workspace/fixtures && npm test          # expect 371 passing
+    cd ~/workspace/fixtures && npm test          # expect 380 passing
     FIXTURES_HTML_FILE=test/fixtures/club2960.html node scripts/check.mjs
-
-Then finish Task 17 from step 4 in this document.
