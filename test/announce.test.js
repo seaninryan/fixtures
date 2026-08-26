@@ -26,12 +26,12 @@ describe("formatFixtureLine", () => {
 
   it("writes a home game with v", () => {
     expect(formatFixtureLine(f(), labels, {}))
-      .toBe("  12:00  U14A Boys v St Bernards");
+      .toBe("12:00  U14A Boys v St Bernards");
   });
 
   it("writes an away game with @", () => {
     expect(formatFixtureLine(f({ isHome: false, opponent: "Cregmore/Claregalway C", venue: "Cregmore" }), labels, {}))
-      .toBe("  12:00  U14A Boys @ Cregmore/Claregalway C");
+      .toBe("12:00  U14A Boys @ Cregmore/Claregalway C");
   });
 
   it("keeps the opposition's own suffix, so parents know which side they face", () => {
@@ -41,7 +41,7 @@ describe("formatFixtureLine", () => {
 
   it("names the ground only when a home game is not at the home ground", () => {
     expect(formatFixtureLine(f({ venue: "Colemanstown" }), labels, {}))
-      .toBe("  12:00  U14A Boys v St Bernards (at Colemanstown)");
+      .toBe("12:00  U14A Boys v St Bernards (at Colemanstown)");
   });
 
   // Hardening. Kills a mutant that drops the `?? fixture.ourTeam` fallback: a squad the
@@ -49,7 +49,7 @@ describe("formatFixtureLine", () => {
   // between the kick-off and the "v".
   it("falls back to the feed's own team name for a teamId the label map does not carry", () => {
     expect(formatFixtureLine(f({ teamId: "379931", ourTeam: "Craughwell United" }), labels, {}))
-      .toBe("  12:00  Craughwell United v St Bernards");
+      .toBe("12:00  Craughwell United v St Bernards");
   });
 
   // Hardening for D: an away game at a named ground stays bare. The away side's ground
@@ -67,16 +67,16 @@ describe("formatFixtureLine", () => {
 
   it("leaves the ground unnamed when the feed gave no venue at all", () => {
     expect(formatFixtureLine(f({ venue: "" }), labels, {}))
-      .toBe("  12:00  U14A Boys v St Bernards");
+      .toBe("12:00  U14A Boys v St Bernards");
   });
 
   it("shows a suffixed feed name unchanged when the squad has no label", () => {
     expect(formatFixtureLine(f({ teamId: "254061", ourTeam: "Craughwell United B" }), labels, {}))
-      .toBe("  12:00  Craughwell United B v St Bernards");
+      .toBe("12:00  Craughwell United B v St Bernards");
   });
 
   it("defaults to no colour square", () => {
-    expect(formatFixtureLine(f(), labels, config)).toBe("  12:00  U14A Boys v St Bernards");
+    expect(formatFixtureLine(f(), labels, config)).toBe("12:00  U14A Boys v St Bernards");
   });
 });
 
@@ -96,11 +96,11 @@ describe("announce", () => {
 Fri 28 Aug - Sun 30 Aug
 
 SATURDAY 29 AUGUST
-  12:00  U14A Boys v St Bernards
-  12:00  U14B Boys @ Cregmore/Claregalway C
+12:00  U14A Boys v St Bernards
+12:00  U14B Boys @ Cregmore/Claregalway C
 
 SUNDAY 30 AUGUST
-  12:00  U14 Girls @ Colga B`);
+12:00  U14 Girls @ Colga B`);
   });
 
   it("honours the window", () => {
@@ -164,8 +164,8 @@ SUNDAY 30 AUGUST
       [f({ fid: "a", venue: "Colemanstown" }), f({ fid: "b", time: "14:00", venue: HOME_VENUE })],
       config, "This weekend", "2026-08-25",
     );
-    expect(out).toContain("  12:00  U14A Boys v St Bernards (at Colemanstown)");
-    expect(out).toMatch(/^ {2}14:00 {2}U14A Boys v St Bernards$/m);
+    expect(out).toContain("12:00  U14A Boys v St Bernards (at Colemanstown)");
+    expect(out).toMatch(/^14:00 {2}U14A Boys v St Bernards$/m);
   });
 
   // Hardening for J: a sort that ignores the date reorders the days themselves. The two
@@ -244,7 +244,7 @@ const realConfig = seedConfig(real, {});
 const TODAY = real[0].date;
 
 const DAY_HEADING = /^[A-Z]+ \d{1,2} [A-Z]+$/;
-const FIXTURE_LINE = /^ {2}\d{2}:\d{2} {2}\S/;
+const FIXTURE_LINE = /^\d{2}:\d{2} {2}\S/;
 
 describe("announce over the golden capture", () => {
   for (const name of WINDOWS) {
@@ -276,7 +276,7 @@ describe("announce over the golden capture", () => {
     expect(out).toContain("Craughwell United (GFA U21 Division 1) v Galway Hibs");
     expect(out).toContain("Craughwell United (GFA Women's Championship) @ Oughterard");
     // The bare name would collide: the U21 men and the women would read identically.
-    expect(out).not.toMatch(/^ {2}\d{2}:\d{2} {2}Craughwell United [v@]/m);
+    expect(out).not.toMatch(/^\d{2}:\d{2} {2}Craughwell United [v@]/m);
   });
 
   // The U21 side plays Wednesday nights. A weekend-only announcement must not carry them,
@@ -285,7 +285,7 @@ describe("announce over the golden capture", () => {
     const sunday = "2026-09-06";
     const week = announce(real, realConfig, "Next 7 days", sunday);
     expect(week).toContain("WEDNESDAY 9 SEPTEMBER");
-    expect(week).toContain("  19:45  Craughwell United (GFA U21 Division 1) @ Colemanstown Utd");
+    expect(week).toContain("19:45  Craughwell United (GFA U21 Division 1) @ Colemanstown Utd");
 
     const weekend = announce(real, realConfig, "This weekend", sunday);
     expect(weekend).not.toContain("WEDNESDAY");
@@ -378,5 +378,34 @@ describe("announceLines", () => {
   it("never carries an emoji: the colour is the site's job, not the text's", () => {
     const lines = announceLines([fx()], cfg, "All", "2026-08-25");
     expect(lines.map((l) => l.text).join("\n")).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
+});
+
+// The announcement is pasted into WhatsApp and into the club's Facebook page, and a
+// leading space is not free there: some clients treat an indented line as preformatted,
+// and it is fiddly to strip by hand on a phone. Every line therefore starts hard left.
+// The two-space gap BETWEEN the time and the squad is not indentation and stays.
+describe("indentation", () => {
+  const fx = (over = {}) => ({
+    fid: "1", teamId: "235380", date: "2026-08-29", time: "12:00", isHome: true,
+    ourTeam: "Craughwell United", opponent: "St Bernards", venue: "Craughwell",
+    competition: "GFA Boys U14 Championship 1", comment: "", ...over,
+  });
+  const cfg = { version: 1, teams: { 235380: { label: "U14A Boys" } } };
+
+  it("starts no line with whitespace, in any window", () => {
+    for (const win of ["This weekend", "Next 7 days", "Next 14 days", "All"]) {
+      const out = announce([fx(), fx({ fid: "2", date: "2026-09-05" })], cfg, win, "2026-08-25");
+      for (const line of out.split("\n")) expect(line).not.toMatch(/^\s+\S/);
+    }
+  });
+
+  it("starts no line with whitespace over the golden capture either", () => {
+    const out = announce(real, realConfig, "All", real[0].date);
+    for (const line of out.split("\n")) expect(line).not.toMatch(/^\s+\S/);
+  });
+
+  it("keeps the gap between the kick-off and the squad", () => {
+    expect(announce([fx()], cfg, "All", "2026-08-25")).toContain("12:00  U14A Boys");
   });
 });

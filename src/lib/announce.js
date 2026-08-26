@@ -38,7 +38,11 @@ export function formatFixtureLine(fixture, labels) {
   const where = fixture.isHome && fixture.venue && fixture.venue !== HOME_VENUE
     ? ` (at ${fixture.venue})`
     : "";
-  return `  ${fixture.time}  ${label} ${versus} ${fixture.opponent}${where}`;
+  // No leading whitespace. This text gets pasted into WhatsApp and Facebook, where an
+  // indented line can be treated as preformatted and is a nuisance to strip on a phone.
+  // The site indents fixture lines in CSS instead, so the look survives and the copy is
+  // clean. The gap between the time and the squad is alignment, not indentation.
+  return `${fixture.time}  ${label} ${versus} ${fixture.opponent}${where}`;
 }
 
 // The announcement as a list of lines, one entry per rendered line.
