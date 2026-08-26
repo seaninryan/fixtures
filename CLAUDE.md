@@ -30,7 +30,10 @@ DATA_DIR=../fixtures-data node scripts/check.mjs                        # write 
 A fixtures tracker for one club (Galway FA club id **2960**, Craughwell United).
 Two jobs: a copyable announcement for club members, and change alerts by email.
 A GitHub Action does the work daily; GitHub Pages serves a static React site over
-the JSON the Action commits. No server, no database, no auth.
+the JSON the Action commits. No server, no database.
+
+The site is gated to the owner's Google account (`src/lib/owner.js`, ported from
+ballislife). The cron performs no OAuth and never will - see the spec.
 
 **The work is split over two repos.** This one is code. The snapshots live in
 `seaninryan/fixtures-data`, and so does the cron workflow that produces them — a
@@ -75,6 +78,11 @@ offline runs.
 - **`parse.js` never throws.** One bad block costs that block.
 - **A missing `latest.json` is an error state, not a spinner.** The site reads it
   across origins, so failure is a real path and must be visible.
+- **The owner gate is not a security boundary.** It hides the app, not the data - the
+  data repo is public by design. Nothing else in the codebase may come to depend on it.
+- **Never request a Google token silently at load.** GIS may never call back when the
+  browser has no Google session, and the page then sits on "Loading..." forever instead
+  of showing the sign-in button. Only a cached token skips the button.
 - **Counts are measured, never hardcoded.** The league adds and renames squads
   mid-season; tests assert rules, not totals.
 

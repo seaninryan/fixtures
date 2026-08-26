@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AnnouncementTab from "./components/AnnouncementTab.jsx";
 import ChangesTab from "./components/ChangesTab.jsx";
 import SquadsTab from "./components/SquadsTab.jsx";
 import { dataUrl, DEFAULT_DATA_URL, DATA_REPO } from "./lib/dataSource.js";
+import {
+  initAuth, signIn, signOut, getAccessToken, accountEmail,
+} from "./lib/googleAuth.js";
+import { isOwner } from "./lib/owner.js";
 
 const TABS = ["Fixtures", "Changes", "Squads"];
 
@@ -18,11 +22,37 @@ async function loadJson(name) {
 }
 
 export default function App() {
+  // "checking" | "signed-out" | "not-owner" | "ok". See src/lib/owner.js: this gate
+  // keeps a stranger who finds the URL out of the app, and is not a security boundary.
+  const [gate, setGate] = useState("checking");
   const [tab, setTab] = useState("Fixtures");
   const [state, setState] = useState({ status: "loading" });
   const [config, setConfig] = useState({ version: 1, teams: {} });
 
+  const check = useCallback(async (interactive) => {
+    // Never a silent token request at load - see googleAuth.js: GIS may never answer
+    // one, and the page would sit on "Loading..." forever. A token this tab already
+    // holds is enough to skip the button on a reload.
+    const token = getAccessToken() ?? (interactive ? await signIn() : null);
+    if (!token) return setGate("signed-out");
+    if (await isOwner(await accountEmail(token))) return setGate("ok");
+    // Drop the token: leaving a non-owner signed in invites a confusing retry loop
+    // where the silent path keeps handing back the same wrong account.
+    signOut();
+    return setGate("not-owner");
+  }, []);
+
   useEffect(() => {
+    let live = true;
+    (async () => {
+      await initAuth();
+      if (live) await check(false);
+    })();
+    return () => { live = false; };
+  }, [check]);
+
+  useEffect(() => {
+    if (gate !== "ok") return undefined;
     let live = true;
     (async () => {
       try {
@@ -37,14 +67,32 @@ export default function App() {
         setConfig(loaded);
         setState({ status: "ready", snapshot, history });
       } catch (err) {
-        // The data is fetched across origins now, so this is a real path: offline, a
+        // The data is fetched across origins, so this is a real path: offline, a
         // rate-limited CDN, a data repo that is not public yet. Saying so beats a
         // spinner that never stops.
         if (live) setState({ status: "failed", error: String(err?.message ?? err) });
       }
     })();
     return () => { live = false; };
-  }, []);
+  }, [gate]);
+
+  if (gate === "checking") {
+    return <main className="wrap"><p className="dim">Loading…</p></main>;
+  }
+
+  if (gate !== "ok") {
+    return (
+      <main className="wrap">
+        <h1>Craughwell United</h1>
+        <div className="card">
+          {gate === "not-owner"
+            ? <p>That account does not have access to this site.</p>
+            : <p className="dim">This site is private.</p>}
+          <button className="primary" onClick={() => check(true)}>Sign in with Google</button>
+        </div>
+      </main>
+    );
+  }
 
   if (state.status === "loading") {
     return <main className="wrap"><p className="dim">Loading…</p></main>;

@@ -10,6 +10,18 @@ and emails a report when the league moves, adds or cancels anything.
 - **Changes** — every change the league has made, from `public/data/changes.json`.
 - **Squads** — squad labels and colours. Edit here, Copy JSON, paste on GitHub.
 
+## Who can use it
+
+The site is restricted to one Google account - the owner's - by the same gate as
+ballislife and fancystats (`src/lib/owner.js`, hashed address, no plaintext in the
+repo). It reuses their OAuth client, and `https://seaninryan.github.io` is already an
+authorised origin for it, so there is nothing to configure.
+
+It hides the **app**, not the **data**: the snapshots live in a public repo that
+`raw.githubusercontent.com` serves to anyone. That was a deliberate choice - the league
+publishes these fixtures - so treat the gate as a lock on the front door of an app whose
+contents are already on the noticeboard.
+
 ## Two repos
 
 This one holds the code. The snapshots live in **`seaninryan/fixtures-data`**, so this

@@ -12,6 +12,10 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%93%85</text></svg>" />
     <link rel="apple-touch-icon" href="/fixtures/apple-touch-icon.png" />
     <meta name="theme-color" content="#0f1419" />
+    <!-- Google Identity Services, for the owner gate in src/lib/owner.js. Loaded async:
+         the app polls for window.google and shows the sign-in button either way, so a
+         blocked script degrades to "cannot sign in" rather than to a blank page. -->
+    <script src="https://accounts.google.com/gsi/client" async></script>
   </head>
   <body>
     <div id="root"></div>

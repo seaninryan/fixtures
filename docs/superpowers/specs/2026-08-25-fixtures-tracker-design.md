@@ -116,10 +116,27 @@ scripts/check.mjs --> fetch --> parse --> diff vs data/latest.json
         +-- Resend email, if configured and something changed
 
 .github/workflows/deploy.yml -> GitHub Pages (Vite build, static)
-        +-- site reads the committed JSON. No auth, no login, no server.
+        +-- site reads the committed JSON. No server.
+        +-- AMENDED 2026-08-26: the site is behind an owner gate (Google sign-in).
 ```
 
-**No Google Drive and no OAuth anywhere.** Considered and rejected: ballislife's
+**AMENDED 2026-08-26 — one OAuth flow, in the browser only.** The site is restricted
+to the owner's Google account, ported from `ballislife/src/lib/owner.js`: sign in,
+read the address from Google's userinfo endpoint, compare its SHA-256 against a
+committed digest (the same digest the other two apps gate on). Three things bound it:
+
+- **It gates the app, not the data.** In ballislife the gate matters because the data
+  lives in the owner's Drive. Here the fixtures sit in a PUBLIC repo and
+  `raw.githubusercontent.com` serves them to anyone, which this spec chose deliberately
+  (see repo visibility). The gate stops a stranger who finds the URL from using the app;
+  it is not privacy, and `owner.js` says so in its own comment.
+- **The scope is `userinfo.email` and nothing else.** The other two apps request Drive
+  because they store there. A read-write Drive grant to look at a fixtures list would be
+  an indefensible consent screen.
+- **The cron is untouched.** It performs no OAuth, which is what the decision below is
+  about and why that decision still stands.
+
+**No Google Drive and no OAuth in the cron.** Considered and rejected: ballislife's
 Drive layer is an interactive browser flow (`initTokenClient` →
 `requestAccessToken` → consent popup), which a cron cannot perform. Making it
 work headlessly needs a service account or a stored refresh token, and a consent
