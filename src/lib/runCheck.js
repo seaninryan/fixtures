@@ -32,7 +32,10 @@ export function runCheck({ html, previous, config, now, today, history = [], sit
   // and most blocks stop matching. The zero-fixtures rule above does not catch it, and the
   // result is an email announcing dozens of cancellations that never happened. A real
   // fixture list shrinks gradually as games are played; it does not halve overnight.
-  const before = previous?.fixtures?.length ?? 0;
+  // Array.isArray, not `?.length`, so this agrees with the firstRun check below about
+  // what counts as a baseline - a corrupted `{fixtures: "nope"}` would otherwise read
+  // as a baseline of 4 here while being treated as a first run there.
+  const before = Array.isArray(previous?.fixtures) ? previous.fixtures.length : 0;
   if (!allowShrink && before > 0 && fixtures.length < before * SHRINK_LIMIT) {
     throw new Error(
       `aborting: fixture count collapsed from ${before} to ${fixtures.length} ` +

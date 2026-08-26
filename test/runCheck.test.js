@@ -417,4 +417,16 @@ describe("runCheck aborts when the fixture count collapses", () => {
     expect(JSON.stringify(first.snapshot)).toBe(snapshotBefore);
     expect(JSON.stringify(first.config)).toBe(configBefore);
   });
+
+  it("agrees with the first-run check about what counts as a baseline", () => {
+    // A corrupted snapshot must be a first run for BOTH the diff and the shrink guard.
+    // The long string is the one with teeth: a `?.length` read gives a baseline of 100,
+    // so 49 fixtures looks like a collapse and the shrink guard aborts - while the diff
+    // path calls the very same snapshot a first run.
+    for (const previous of [{ fixtures: "nope" }, { fixtures: 49 }, {}, { fixtures: "x".repeat(100) }]) {
+      const out = runCheck({ html, previous, config: null, now: NOW, today: TODAY });
+      expect(out.firstRun).toBe(true);
+      expect(out.snapshot.fixtures).toHaveLength(FIXTURE_COUNT);
+    }
+  });
 });
