@@ -3,3 +3,27 @@
 body { margin: 0; background: var(--bg); color: var(--fg);
   font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif; }
 .wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+.grow { flex: 1; min-width: 0; }
+.dim { color: var(--dim); font-size: 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px; margin: 12px 0; }
+.chip { background: transparent; color: var(--fg); border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px 12px; font-size: 14px; cursor: pointer;
+  text-decoration: none; }
+.chip.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.primary { background: #1f6feb; color: #fff; border: 0; border-radius: 8px;
+  padding: 10px 18px; font-size: 15px; cursor: pointer; }
+.announcement { white-space: pre-wrap; font: 14px/1.55 ui-monospace, SFMono-Regular,
+  Menlo, monospace; overflow-x: auto; }
+.change { padding: 8px 0; border-top: 1px solid var(--line); }
+.change:first-of-type { border-top: 0; }
+/* Squad chips are UI badges, NOT body text. Six of the 24 palette colours sit between
+   3:1 and 4.5:1 against their best foreground and cannot be fixed by text colour, so
+   the 3:1 large/bold floor is the one that must apply: keep chip text bold and do not
+   drop it below 14px. See squadColors.js contrastFg. */
+.tag { display: inline-block; font-size: 11px; letter-spacing: .08em;
+  border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; margin-right: 8px; }
+.tag.warn { border-color: #e5a94d; color: #e5a94d; }
+.label-input { width: 100%; background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 15px; }
