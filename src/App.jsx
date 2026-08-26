@@ -41,7 +41,7 @@ export default function App() {
         ))}
       </div>
       {tab === "Fixtures" && <AnnouncementTab fixtures={fixtures} config={config} today={today} />}
-      {tab === "Changes" && <ChangesTab history={history} config={config} />}
+      {tab === "Changes" && <ChangesTab history={history} fixtures={fixtures} config={config} />}
       {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} onChange={setConfig} />}
       <footer className="dim">Updated {snapshot.fetchedAt?.slice(0, 10)}</footer>
     </main>

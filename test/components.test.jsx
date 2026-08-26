@@ -44,6 +44,23 @@ describe("ChangesTab", () => {
     expect(html).toContain("MOVED");
     expect(html).toContain("U14A Boys");
   });
+
+  // The invariant that has bitten announce.js, changeReport.js and runCheck's call site:
+  // deriveLabels only shows the A/B letter when the club runs more than one side at that
+  // age and gender, so labels resolved over one run's changes silently rename a squad.
+  it("keeps the A/B letter by resolving labels over every fixture", () => {
+    const bare = { version: 1, teams: {} };
+    const aSide = { ...fixtures[0], fid: "1", teamId: "A1", ourTeam: "Craughwell United" };
+    const bSide = { ...fixtures[0], fid: "2", teamId: "B1", ourTeam: "Craughwell United B" };
+    const history = [{ checkedAt: "2026-08-25T06:00:00Z", changes: [{
+      type: "venue", fid: "2", teamId: "B1", fixture: bSide, comment: "",
+      from: "Ros A Mhil", to: "Carraroe Astro",
+    }] }];
+    const html = renderToStaticMarkup(
+      <ChangesTab history={history} fixtures={[aSide, bSide]} config={bare} />,
+    );
+    expect(html).toContain("U14B Boys");
+  });
 });
 
 describe("SquadsTab", () => {
