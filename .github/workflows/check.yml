@@ -1,0 +1,47 @@
+name: check
+
+on:
+  # GitHub cron is UTC-only, so this is 07:00 IST in summer and 06:00 GMT in winter.
+  # Fixtures move days ahead, not hours, so the drift does not matter.
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # A failed fetch exits non-zero here, so nothing below runs and nothing is
+      # committed. That is the intended behaviour: a blocked request must never be
+      # recorded as "no fixtures".
+      - name: Check fixtures
+        run: node scripts/check.mjs
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_TO_EMAIL: ${{ secrets.ALERT_TO_EMAIL }}
+          ALERT_FROM_EMAIL: ${{ secrets.ALERT_FROM_EMAIL }}
+
+      - name: Commit snapshot
+        run: |
+          git config user.name "fixtures-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data
+          git diff --staged --quiet && echo "no snapshot change" && exit 0
+          git commit -m "chore: fixtures snapshot $(date -u +%F)"
+          git push
