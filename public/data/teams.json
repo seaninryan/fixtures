@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "teams": {
+    "234323": {
+      "label": null,
+      "color": "#e5484d"
+    },
+    "235299": {
+      "label": "U18 Boys",
+      "color": "#e5794d"
+    },
+    "235325": {
+      "label": "U16 Boys",
+      "color": "#e5a94d"
+    },
+    "235380": {
+      "label": "U14A Boys",
+      "color": "#d9c53c"
+    },
+    "235435": {
+      "label": "U13 Boys",
+      "color": "#a3c93f"
+    },
+    "235461": {
+      "label": "U12A Boys",
+      "color": "#3fb950"
+    },
+    "238128": {
+      "label": "U18 Girls",
+      "color": "#3fb98a"
+    },
+    "238142": {
+      "label": "U16 Girls",
+      "color": "#3fb9b9"
+    },
+    "238155": {
+      "label": "U14 Girls",
+      "color": "#3f93d9"
+    },
+    "238174": {
+      "label": "U12A Girls",
+      "color": "#1f6feb"
+    },
+    "238188": {
+      "label": "U12B Girls",
+      "color": "#5a5ae5"
+    },
+    "254053": {
+      "label": "U15A Boys",
+      "color": "#8b5ae5"
+    },
+    "254061": {
+      "label": "U14B Boys",
+      "color": "#b95ad9"
+    },
+    "283766": {
+      "label": "U15 Girls",
+      "color": "#d94da3"
+    },
+    "284049": {
+      "label": "U13 Girls",
+      "color": "#8c6f5a"
+    },
+    "300398": {
+      "label": "U17 Boys",
+      "color": "#7d8a99"
+    },
+    "379931": {
+      "label": null,
+      "color": "#a32d31"
+    },
+    "380133": {
+      "label": "U15B Boys",
+      "color": "#b06a1f"
+    },
+    "380288": {
+      "label": "U12B Boys",
+      "color": "#7a8f1f"
+    }
+  }
+}
