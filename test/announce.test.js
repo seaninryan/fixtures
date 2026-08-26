@@ -4,7 +4,9 @@ import { parse } from "../src/lib/parse.js";
 import { normalizeAll } from "../src/lib/normalize.js";
 import { seedConfig } from "../src/lib/teams.js";
 import { windowPredicate, WINDOWS } from "../src/lib/window.js";
-import { announce, formatFixtureLine, CLUB_TITLE, HOME_VENUE } from "../src/lib/announce.js";
+import {
+  announce, announceLines, formatFixtureLine, CLUB_TITLE, HOME_VENUE,
+} from "../src/lib/announce.js";
 
 const config = { teams: {
   "235380": { label: "U14A Boys", color: "#1f6feb" },
@@ -40,11 +42,6 @@ describe("formatFixtureLine", () => {
   it("names the ground only when a home game is not at the home ground", () => {
     expect(formatFixtureLine(f({ venue: "Colemanstown" }), labels, {}))
       .toBe("  12:00  U14A Boys v St Bernards (at Colemanstown)");
-  });
-
-  it("can prefix the squad's colour as an emoji square for WhatsApp", () => {
-    expect(formatFixtureLine(f(), labels, config, { colors: true }))
-      .toBe("  🟦 12:00  U14A Boys v St Bernards");
   });
 
   // Hardening. Kills a mutant that drops the `?? fixture.ourTeam` fallback: a squad the
@@ -311,20 +308,6 @@ describe("announce over the golden capture", () => {
     expect(JSON.stringify(real)).toBe(before);
   });
 
-  it("prefixes every fixture line with a colour square in emoji mode, and nothing else", () => {
-    const plain = announce(real, realConfig, "All", TODAY, {});
-    const colored = announce(real, realConfig, "All", TODAY, { colors: true });
-    const plainLines = plain.split("\n");
-    const coloredLines = colored.split("\n");
-
-    expect(coloredLines).toHaveLength(plainLines.length);
-    const swatched = coloredLines.filter((l) => /^ {2}\p{Extended_Pictographic}️? \d{2}:\d{2} {2}\S/u.test(l));
-    expect(swatched).toHaveLength(real.length);
-    // Headings are text and must stay text.
-    expect(coloredLines.filter((l) => DAY_HEADING.test(l)))
-      .toEqual(plainLines.filter((l) => DAY_HEADING.test(l)));
-  });
-
   it("orders two fixtures at the same kick-off by fid, whatever order it is given them", () => {
     // Total order, independent of the caller. Reversing the input must not reorder output.
     const a = f({ fid: "111", teamId: "254061", opponent: "Athenry" });
@@ -333,5 +316,67 @@ describe("announce over the golden capture", () => {
     const backwards = announce([b, a], config, "All", "2026-08-25");
     expect(forwards).toBe(backwards);
     expect(forwards.indexOf("Athenry")).toBeLessThan(forwards.indexOf("Colga B"));
+  });
+});
+
+// --- the line model behind the site's colour swatches ---
+
+describe("announceLines", () => {
+  const fx = (over = {}) => ({
+    fid: "1", teamId: "235380", date: "2026-08-29", time: "12:00", isHome: true,
+    ourTeam: "Craughwell United", opponent: "St Bernards", venue: "Craughwell",
+    competition: "GFA Boys U14 Championship 1", comment: "", ...over,
+  });
+  const cfg = { version: 1, teams: { 235380: { label: "U14A Boys", color: "#1f6feb" } } };
+
+  // THE ANTI-DRIFT GUARANTEE. The site renders the lines and copies the joined text; the
+  // email quotes announce(). If these two ever disagree, what a member is told and what
+  // was copied to them differ, which is the one thing this module exists to prevent.
+  it("joins to exactly what announce returns", () => {
+    for (const win of ["This weekend", "Next 7 days", "Next 14 days", "All"]) {
+      const lines = announceLines([fx(), fx({ fid: "2", date: "2026-09-05" })], cfg, win, "2026-08-25");
+      expect(lines.map((l) => l.text).join("\n"))
+        .toBe(announce([fx(), fx({ fid: "2", date: "2026-09-05" })], cfg, win, "2026-08-25"));
+    }
+  });
+
+  it("carries the squad's colour on a fixture line, for the site to show beside it", () => {
+    const lines = announceLines([fx()], cfg, "This weekend", "2026-08-25");
+    const fixtures = lines.filter((l) => l.kind === "fixture");
+    expect(fixtures).toHaveLength(1);
+    expect(fixtures[0].teamId).toBe("235380");
+    expect(fixtures[0].color).toBe("#1f6feb");
+  });
+
+  it("gives a colour to nothing but fixture lines", () => {
+    const lines = announceLines([fx()], cfg, "This weekend", "2026-08-25");
+    for (const line of lines.filter((l) => l.kind !== "fixture")) {
+      expect(line.color).toBeUndefined();
+      expect(line.teamId).toBeUndefined();
+    }
+  });
+
+  it("labels the club title, the date range and each day heading", () => {
+    const lines = announceLines([fx()], cfg, "This weekend", "2026-08-25");
+    expect(lines[0]).toMatchObject({ kind: "title", text: "CRAUGHWELL UNITED" });
+    expect(lines[1].kind).toBe("subtitle");
+    expect(lines.find((l) => l.kind === "day").text).toBe("SATURDAY 29 AUGUST");
+  });
+
+  it("keeps the blank line before a day heading as its own line", () => {
+    const lines = announceLines([fx()], cfg, "This weekend", "2026-08-25");
+    const day = lines.findIndex((l) => l.kind === "day");
+    expect(lines[day - 1]).toMatchObject({ kind: "blank", text: "" });
+  });
+
+  it("still says so when the window is empty", () => {
+    const lines = announceLines([], cfg, "This weekend", "2026-08-25");
+    expect(lines.map((l) => l.text).join("\n")).toContain("No fixtures in this window.");
+    expect(lines.some((l) => l.kind === "fixture")).toBe(false);
+  });
+
+  it("never carries an emoji: the colour is the site's job, not the text's", () => {
+    const lines = announceLines([fx()], cfg, "All", "2026-08-25");
+    expect(lines.map((l) => l.text).join("\n")).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 });

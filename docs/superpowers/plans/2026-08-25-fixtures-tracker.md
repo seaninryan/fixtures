@@ -2893,8 +2893,11 @@ by `announce.test.js`; `navigator.clipboard` is not testable without a browser.
 1. **Two squads still need labels:** `234323` (GFA U21 Division 1) and `379931`
    (GFA Women's Championship). Edit them in the Squads tab, or directly in
    `teams.json` in the data repo.
-2. **Emoji colour squares**: only 8 squares for 19 squads, so several share one.
-   Off by default. Keep the toggle or drop it?
+2. ~~**Emoji colour squares**~~ **RESOLVED 2026-08-26: dropped.** The owner asked for
+   the colour beside the line instead of in it. The site now renders the announcement
+   from `announceLines()` and puts each squad's colour in the left gutter, so it cannot
+   be copied; `announce()` is that same line list joined, which is what keeps the
+   copied text and the emailed text identical. `colorEmoji` and its tests are gone.
 3. **Email alerts are ON and verified** (2026-08-26). `RESEND_API_KEY` and
    `ALERT_TO_EMAIL` are set on the DATA repo, and a rehearsal - a faked kick-off time
    in the baseline, diffed against the live feed - delivered

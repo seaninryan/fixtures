@@ -346,9 +346,16 @@ MONDAY 31 AUGUST
   `This weekend` (the coming Fri–Sun; on a Sat or Sun, the current one),
   `Next 7 days` / `Next 14 days` (today + N-1 days), `All` (every future
   fixture). Defaults to **Next 7 days** so midweek U21 games are not stranded.
-- Optional toggle: prefix each line with the squad's colour as an emoji square
+- ~~Optional toggle: prefix each line with the squad's colour as an emoji square
   (`🟦 12:00 U14A Boys v St Bernards`), which survives WhatsApp intact. Off by
-  default.
+  default.~~ **AMENDED 2026-08-26 — dropped, in favour of a swatch the text does not
+  carry.** 24 palette colours collapse onto 8 emoji squares, so squads collided; and
+  being inside the text, the square rode along into every paste whether or not it
+  helped. The site now shows the squad's colour as a small block in the announcement's
+  left gutter — same information, in the one place it is useful, and it cannot be
+  copied. `announce()` is derived from `announceLines()`, so what the site shows and
+  what Copy and the email carry cannot drift. `colorEmoji` is gone from
+  `squadColors.js`; recover it from git if a plain-text swatch is ever wanted again.
 
 ## Change email
 

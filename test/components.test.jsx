@@ -19,6 +19,31 @@ describe("AnnouncementTab", () => {
     expect(html).toContain("U14A Boys v St Bernards");
   });
 
+  // The colour lives BESIDE the line, never in it. An emoji prefix would ride along
+  // into every pasted WhatsApp message; a swatch in the gutter cannot.
+  it("shows each squad's colour beside its fixture line", () => {
+    const html = renderToStaticMarkup(
+      <AnnouncementTab fixtures={fixtures} config={config} today="2026-08-25" />,
+    );
+    expect(html).toContain('style="background:#1f6feb"');
+  });
+
+  it("keeps the swatch empty, so selecting the text cannot pick it up", () => {
+    const html = renderToStaticMarkup(
+      <AnnouncementTab fixtures={fixtures} config={config} today="2026-08-25" />,
+    );
+    expect(html).toMatch(/<span[^>]*class="swatch"[^>]*><\/span>/);
+    expect(html).toContain('aria-hidden="true"');
+  });
+
+  it("puts no emoji in the announcement text", () => {
+    const html = renderToStaticMarkup(
+      <AnnouncementTab fixtures={fixtures} config={config} today="2026-08-25" />,
+    );
+    expect(html).not.toMatch(/\p{Extended_Pictographic}/u);
+    expect(html).not.toContain("Colour squares");
+  });
+
   it("offers every window", () => {
     const html = renderToStaticMarkup(
       <AnnouncementTab fixtures={fixtures} config={config} today="2026-08-25" />,

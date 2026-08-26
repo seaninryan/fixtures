@@ -42,37 +42,3 @@ export function squadColor(teamId, config) {
   const bg = set || PALETTE[hashIndex(teamId, PALETTE.length)];
   return { bg, fg: contrastFg(bg) };
 }
-
-// Plain-text announcements cannot carry colour, but emoji squares survive WhatsApp
-// intact. Nearest hue wins; greys fall through to white.
-const SQUARES = [
-  { emoji: "🟥", hue: 0 }, { emoji: "🟧", hue: 30 }, { emoji: "🟨", hue: 55 },
-  { emoji: "🟩", hue: 130 }, { emoji: "🟦", hue: 215 }, { emoji: "🟪", hue: 280 },
-  { emoji: "🟫", hue: 25 },
-];
-
-function hsv(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
-  let h = 0;
-  if (d !== 0) {
-    if (max === r) h = 60 * (((g - b) / d) % 6);
-    else if (max === g) h = 60 * ((b - r) / d + 2);
-    else h = 60 * ((r - g) / d + 4);
-  }
-  return { h: (h + 360) % 360, s: max === 0 ? 0 : d / max, v: max };
-}
-
-export function colorEmoji(hex) {
-  const { h, s, v } = hsv(hex);
-  if (s < 0.2) return v < 0.35 ? "⬛" : "⬜";
-  if (s < 0.45 && v < 0.65) return "🟫";
-  let best = SQUARES[0];
-  let bestDist = 360;
-  for (const sq of SQUARES.slice(0, 6)) {
-    const dist = Math.min(Math.abs(h - sq.hue), 360 - Math.abs(h - sq.hue));
-    if (dist < bestDist) { bestDist = dist; best = sq; }
-  }
-  return best.emoji;
-}

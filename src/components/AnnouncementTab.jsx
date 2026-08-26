@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { announce } from "../lib/announce.js";
+import { announceLines } from "../lib/announce.js";
 import { WINDOWS } from "../lib/window.js";
 
 export default function AnnouncementTab({ fixtures, config, today }) {
   const [windowName, setWindowName] = useState("Next 7 days");
-  const [colors, setColors] = useState(false);
   const [copied, setCopied] = useState(false);
-  const text = announce(fixtures, config, windowName, today, { colors });
+
+  // One builder for both: the swatches decorate these lines, and Copy sends the same
+  // lines joined. The colour is deliberately NOT in the text - a swatch in the gutter
+  // cannot ride along into a pasted WhatsApp message the way an emoji prefix did.
+  const lines = announceLines(fixtures, config, windowName, today);
+  const text = lines.map((line) => line.text).join("\n");
 
   async function copy() {
     try {
@@ -26,11 +30,18 @@ export default function AnnouncementTab({ fixtures, config, today }) {
                   onClick={() => setWindowName(w)}>{w}</button>
         ))}
       </div>
-      <label className="row dim">
-        <input type="checkbox" checked={colors} onChange={(e) => setColors(e.target.checked)} />
-        Colour squares
-      </label>
-      <pre className="card announcement">{text}</pre>
+      <div className="card announcement">
+        {lines.map((line, i) => (
+          // The index is the key on purpose: these lines have no identity of their own,
+          // and the whole list is rebuilt whenever the window changes.
+          <div className={`aline ${line.kind}`} key={i}>
+            {line.color
+              ? <span className="swatch" style={{ background: line.color }} aria-hidden="true" />
+              : null}
+            <span className="atext">{line.text}</span>
+          </div>
+        ))}
+      </div>
       <button className="primary" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
     </section>
   );

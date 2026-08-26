@@ -4,7 +4,7 @@
 // what an email quotes can never drift apart.
 import { windowPredicate, windowRange } from "./window.js";
 import { resolveTeams } from "./teams.js";
-import { squadColor, colorEmoji } from "./squadColors.js";
+import { squadColor } from "./squadColors.js";
 
 export const CLUB_TITLE = "CRAUGHWELL UNITED";
 export const HOME_VENUE = "Craughwell";
@@ -30,7 +30,7 @@ function shortDate(iso) {
   return `${DAYS_SHORT[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS_SHORT[d.getUTCMonth()]}`;
 }
 
-export function formatFixtureLine(fixture, labels, config, opts = {}) {
+export function formatFixtureLine(fixture, labels) {
   const label = labels[fixture.teamId] ?? fixture.ourTeam;
   const versus = fixture.isHome ? "v" : "@";
   // v / @ already tells you whose ground it is. The ground is only worth naming when a
@@ -38,11 +38,20 @@ export function formatFixtureLine(fixture, labels, config, opts = {}) {
   const where = fixture.isHome && fixture.venue && fixture.venue !== HOME_VENUE
     ? ` (at ${fixture.venue})`
     : "";
-  const swatch = opts.colors ? `${colorEmoji(squadColor(fixture.teamId, config).bg)} ` : "";
-  return `  ${swatch}${fixture.time}  ${label} ${versus} ${fixture.opponent}${where}`;
+  return `  ${fixture.time}  ${label} ${versus} ${fixture.opponent}${where}`;
 }
 
-export function announce(fixtures, config, windowName, today, opts = {}) {
+// The announcement as a list of lines, one entry per rendered line.
+//
+// The site renders these so it can put a squad's colour BESIDE a fixture rather than
+// inside it: a swatch in the gutter is not text, so it cannot be copied into a WhatsApp
+// message as a stray emoji. `announce()` below is just these lines joined, which is what
+// keeps the copied text and the emailed text from ever drifting apart - there is one
+// builder, not two.
+//
+// Line kinds: title | subtitle | blank | day | fixture | note.
+// Only a `fixture` line carries `teamId` and `color`.
+export function announceLines(fixtures, config, windowName, today) {
   const all = fixtures ?? [];
   const inWindow = windowPredicate(windowName, today);
   const { from, to } = windowRange(windowName, today);
@@ -56,26 +65,48 @@ export function announce(fixtures, config, windowName, today, opts = {}) {
       a.time.localeCompare(b.time) ||
       String(a.fid).localeCompare(String(b.fid)));
 
-  const heading = windowName === "All"
-    ? `${CLUB_TITLE}\nAll upcoming fixtures`
-    : `${CLUB_TITLE}\n${shortDate(from)} - ${shortDate(to)}`;
+  const lines = [
+    { kind: "title", text: CLUB_TITLE },
+    {
+      kind: "subtitle",
+      text: windowName === "All"
+        ? "All upcoming fixtures"
+        : `${shortDate(from)} - ${shortDate(to)}`,
+    },
+  ];
 
-  if (chosen.length === 0) return `${heading}\n\nNo fixtures in this window.`;
+  if (chosen.length === 0) {
+    lines.push({ kind: "blank", text: "" });
+    lines.push({ kind: "note", text: "No fixtures in this window." });
+    return lines;
+  }
 
   // Resolved over EVERY fixture, not just the windowed ones: deriveLabels decides
   // whether to show the A/B letter by counting the club's squads at that age and
   // gender, and that count must not change with the window.
   const { labels } = resolveTeams(all, config);
 
-  const sections = [];
   let currentDay = null;
   for (const fixture of chosen) {
     if (fixture.date !== currentDay) {
       currentDay = fixture.date;
-      sections.push(`\n${dayHeading(currentDay)}`);
+      lines.push({ kind: "blank", text: "" });
+      lines.push({ kind: "day", text: dayHeading(currentDay) });
     }
-    sections.push(formatFixtureLine(fixture, labels, config, opts));
+    lines.push({
+      kind: "fixture",
+      text: formatFixtureLine(fixture, labels),
+      teamId: fixture.teamId,
+      color: squadColor(fixture.teamId, config).bg,
+    });
   }
 
-  return `${heading}\n${sections.join("\n")}`;
+  return lines;
+}
+
+// The plain text: what Copy puts on the clipboard and what the alert email quotes.
+export function announce(fixtures, config, windowName, today) {
+  return announceLines(fixtures, config, windowName, today)
+    .map((line) => line.text)
+    .join("\n");
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { PALETTE, contrastFg, squadColor, colorEmoji } from "../src/lib/squadColors.js";
+import { PALETTE, contrastFg, squadColor } from "../src/lib/squadColors.js";
 import { parse } from "../src/lib/parse.js";
 import { normalizeAll } from "../src/lib/normalize.js";
 import { TEAM_COUNT } from "./fixtures/meta.js";
@@ -101,45 +101,6 @@ describe("squadColor", () => {
       const c = squadColor(id, {});
       expect(PALETTE).toContain(c.bg);
       expect(c.fg).toBe(contrastFg(c.bg));
-    }
-  });
-});
-
-describe("colorEmoji", () => {
-  it("maps a colour to the nearest emoji square for plain-text announcements", () => {
-    expect(colorEmoji("#e5484d")).toBe("🟥");
-    expect(colorEmoji("#1f6feb")).toBe("🟦");
-    expect(colorEmoji("#3fb950")).toBe("🟩");
-  });
-
-  it("covers the rest of the wheel", () => {
-    expect(colorEmoji("#d9c53c")).toBe("🟨");
-    expect(colorEmoji("#8b5ae5")).toBe("🟪");
-    // Orange must stay orange: brown's hue sits in the same region, so it may only be
-    // reached by the desaturation rule below, never by winning on hue distance.
-    expect(colorEmoji("#e5794d")).toBe("🟧");
-    expect(colorEmoji("#b06a1f")).toBe("🟧");
-  });
-
-  it("sends greys to the neutral squares rather than a hue", () => {
-    expect(colorEmoji("#7d8a99")).toBe("⬜");
-    expect(colorEmoji("#222222")).toBe("⬛");
-    expect(colorEmoji("#ffffff")).toBe("⬜");
-    expect(colorEmoji("#000000")).toBe("⬛");
-  });
-
-  it("sends muted dark colours to brown", () => {
-    expect(colorEmoji("#8c6f5a")).toBe("🟫");
-  });
-
-  it("returns a real square for every palette entry, well spread", () => {
-    const emojis = PALETTE.map(colorEmoji);
-    expect(emojis.every((e) => typeof e === "string" && e.length > 0)).toBe(true);
-    // Not all one square - the point of the emoji prefix is telling squads apart.
-    expect(new Set(emojis).size).toBe(8);
-    // And no single square may swallow the palette. Currently the worst is blue at 6.
-    for (const e of new Set(emojis)) {
-      expect(emojis.filter((x) => x === e).length).toBeLessThanOrEqual(6);
     }
   });
 });
