@@ -21,7 +21,7 @@ body { margin: 0; background: var(--bg); color: var(--fg);
 .aline { position: relative; padding-left: 18px; }
 /* Display-only indent under each day heading. It lives in CSS precisely so it cannot
    reach the clipboard - announce() emits every line flush left. */
-.aline.fixture { padding-left: 30px; }
+.aline.fixture, .aline.result { padding-left: 30px; }
 .atext { white-space: pre; }
 .aline.blank { height: 1.55em; }
 .swatch { position: absolute; left: 0; top: .45em; width: 10px; height: 10px;

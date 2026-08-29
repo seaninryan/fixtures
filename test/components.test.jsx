@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import AnnouncementTab from "../src/components/AnnouncementTab.jsx";
+import ResultsTab from "../src/components/ResultsTab.jsx";
 import ChangesTab from "../src/components/ChangesTab.jsx";
 import SquadsTab from "../src/components/SquadsTab.jsx";
 
@@ -50,6 +51,49 @@ describe("AnnouncementTab", () => {
     );
     expect(html).toContain("This weekend");
     expect(html).toContain("All");
+  });
+});
+
+const resultsFixture = [{
+  fid: "1", teamId: "11", date: "2026-08-29", isHome: true,
+  ourTeam: "Craughwell United", opponent: "St Bernards",
+  ourScore: 1, theirScore: 0, venue: "Craughwell",
+  competition: "GFA Boys U14 Championship 1",
+}];
+
+const resultsSquadFixtures = [{
+  fid: "90", teamId: "11", date: "2026-09-05", time: "12:00", isHome: true,
+  ourTeam: "Craughwell United", opponent: "X", venue: "Craughwell",
+  competition: "GFA Boys U14 Championship 1", comment: "",
+}];
+
+const resultsConfig = { version: 1, teams: { "11": { label: "U14A Boys", color: "#d9c53c" } } };
+
+describe("ResultsTab", () => {
+  it("renders a result line with its squad label", () => {
+    const html = renderToStaticMarkup(
+      <ResultsTab results={{ version: 1, results: resultsFixture }}
+                  fixtures={resultsSquadFixtures} config={resultsConfig} today="2026-08-31" />,
+    );
+    expect(html).toContain("U14A Boys 1-0 St Bernards");
+    expect(html).toContain("SATURDAY 29 AUGUST");
+  });
+
+  it("says the store could not be loaded rather than claiming nobody played", () => {
+    const html = renderToStaticMarkup(
+      <ResultsTab results={null} fixtures={[]} config={resultsConfig} today="2026-08-31" />,
+    );
+    expect(html).toMatch(/could not/i);
+    expect(html).not.toMatch(/No results in this window/);
+  });
+
+  it("distinguishes an empty store from a failed one", () => {
+    const html = renderToStaticMarkup(
+      <ResultsTab results={{ version: 1, results: [] }}
+                  fixtures={[]} config={resultsConfig} today="2026-08-31" />,
+    );
+    expect(html).toMatch(/No results/);
+    expect(html).not.toMatch(/could not/i);
   });
 });
 

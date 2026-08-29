@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AnnouncementTab from "./components/AnnouncementTab.jsx";
+import ResultsTab from "./components/ResultsTab.jsx";
 import ChangesTab from "./components/ChangesTab.jsx";
 import SquadsTab from "./components/SquadsTab.jsx";
 import { dataUrl, DEFAULT_DATA_URL, DATA_REPO } from "./lib/dataSource.js";
@@ -8,7 +9,7 @@ import {
 } from "./lib/googleAuth.js";
 import { isOwner } from "./lib/owner.js";
 
-const TABS = ["Fixtures", "Changes", "Squads"];
+const TABS = ["Fixtures", "Results", "Changes", "Squads"];
 
 // Set VITE_DATA_URL in a .env file to read a local copy instead of the data repo.
 const BASE = import.meta.env.VITE_DATA_URL || DEFAULT_DATA_URL;
@@ -56,16 +57,22 @@ export default function App() {
     let live = true;
     (async () => {
       try {
-        // latest.json is the site. The other two degrade to empty: a club with no
-        // recorded changes and no labels still gets a correct announcement.
-        const [snapshot, history, loaded] = await Promise.all([
+        // latest.json is the site. The others degrade: a club with no recorded changes
+        // and no labels still gets a correct announcement.
+        //
+        // results.json resolves to null, NOT [], when it cannot be read. An empty array
+        // would render as "No results in this window." - which reads as "nobody played"
+        // when the truth is "we could not load them". That is the spinner problem in a
+        // different costume, so the tab is told the difference and says so.
+        const [snapshot, history, loaded, results] = await Promise.all([
           loadJson("latest.json"),
           loadJson("changes.json").catch(() => []),
           loadJson("teams.json").catch(() => ({ version: 1, teams: {} })),
+          loadJson("results.json").catch(() => null),
         ]);
         if (!live) return;
         setConfig(loaded);
-        setState({ status: "ready", snapshot, history });
+        setState({ status: "ready", snapshot, history, results });
       } catch (err) {
         // The data is fetched across origins, so this is a real path: offline, a
         // rate-limited CDN, a data repo that is not public yet. Saying so beats a
@@ -114,7 +121,7 @@ export default function App() {
     );
   }
 
-  const { snapshot, history } = state;
+  const { snapshot, history, results } = state;
   const today = new Date().toISOString().slice(0, 10);
   const fixtures = snapshot.fixtures ?? [];
 
@@ -127,6 +134,9 @@ export default function App() {
         ))}
       </div>
       {tab === "Fixtures" && <AnnouncementTab fixtures={fixtures} config={config} today={today} />}
+      {tab === "Results" && (
+        <ResultsTab results={results} fixtures={fixtures} config={config} today={today} />
+      )}
       {tab === "Changes" && <ChangesTab history={history} fixtures={fixtures} config={config} />}
       {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} onChange={setConfig} />}
       <footer className="dim">Updated {snapshot.fetchedAt?.slice(0, 10)}</footer>
