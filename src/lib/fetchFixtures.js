@@ -14,8 +14,11 @@
 //      the whole fetch/diff pipeline lives in a CI job rather than in the app.
 export const FIXTURES_URL = "https://galwayfa.ie/wp-admin/admin-ajax.php";
 
-// Every parameter is load-bearing. `displayResults=` empty is what asks for FIXTURES
-// rather than results; the two empty ids ask for every competition and every team.
+// Every parameter is load-bearing EXCEPT displayResults, which is inert: verified
+// 2026-08-29 that `displayResults=1` and `displayResults=` return byte-identical
+// responses. It is sent because the browser sends it, not because it selects anything.
+// Results are not behind it - they arrive in this same response as `table-body results`
+// blocks. The two empty ids ask for every competition and every team.
 export const FIXTURES_PARAMS = {
   action: "fixtures",
   club_id: "2960",
