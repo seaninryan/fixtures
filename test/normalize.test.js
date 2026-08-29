@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { parse } from "../src/lib/parse.js";
-import { isoDate, normalize, normalizeAll, sortFixtures } from "../src/lib/normalize.js";
+import {
+  isoDate,
+  normalize,
+  normalizeAll,
+  sortFixtures,
+  parseScore,
+  normalizeResult,
+  normalizeAllResults,
+} from "../src/lib/normalize.js";
 import { FIXTURE_COUNT } from "./fixtures/meta.js";
 
 const html = readFileSync(new URL("./fixtures/club2960.html", import.meta.url), "utf8");
@@ -314,6 +322,89 @@ describe("sortFixtures", () => {
     expect(dates).toEqual([...dates].sort());
     expect(dates[0]).toBe("2026-08-29");
     expect(dates[dates.length - 1]).toBe("2027-01-13");
+  });
+});
+
+const rawResult = (over = {}) => ({
+  fid: "1", teamId: "11", competitionId: "77",
+  date: "29 Aug 2026",
+  homeTeam: "Craughwell United", awayTeam: "St Bernards",
+  homeClubId: "2960", awayClubId: "9999",
+  homeScore: "1", awayScore: "0",
+  venue: "Craughwell", competition: "GFA Boys U14 Championship 1",
+  ...over,
+});
+
+describe("parseScore", () => {
+  it("reads zero as a score, not as missing", () => {
+    expect(parseScore("0")).toBe(0);
+  });
+
+  it("rejects an empty string rather than coercing it to zero", () => {
+    expect(parseScore("")).toBeNull();
+    expect(parseScore(undefined)).toBeNull();
+    expect(parseScore("  ")).toBeNull();
+  });
+
+  it("rejects anything that is not a whole number", () => {
+    expect(parseScore("P-P")).toBeNull();
+    expect(parseScore("1.5")).toBeNull();
+    expect(parseScore("-1")).toBeNull();
+  });
+});
+
+describe("normalizeResult", () => {
+  it("puts the scores our way round when we are at home", () => {
+    const r = normalizeResult(rawResult());
+    expect(r.isHome).toBe(true);
+    expect(r.ourTeam).toBe("Craughwell United");
+    expect(r.opponent).toBe("St Bernards");
+    expect(r.ourScore).toBe(1);
+    expect(r.theirScore).toBe(0);
+  });
+
+  it("puts the scores our way round when we are away", () => {
+    const r = normalizeResult(rawResult({
+      homeClubId: "9999", awayClubId: "2960",
+      homeTeam: "Cregmore/Claregalway C", awayTeam: "Craughwell United B",
+      homeScore: "4", awayScore: "3",
+    }));
+    expect(r.isHome).toBe(false);
+    expect(r.ourTeam).toBe("Craughwell United B");
+    expect(r.opponent).toBe("Cregmore/Claregalway C");
+    expect(r.ourScore).toBe(3);
+    expect(r.theirScore).toBe(4);
+  });
+
+  it("converts the date to an ISO string", () => {
+    expect(normalizeResult(rawResult()).date).toBe("2026-08-29");
+  });
+
+  it("carries no time - a result never prints one", () => {
+    expect(normalizeResult(rawResult()).time).toBeUndefined();
+  });
+});
+
+describe("normalizeAllResults", () => {
+  it("drops a result with an unparseable date and says so", () => {
+    const { results, errors } = normalizeAllResults([rawResult({ date: "32 Aug 2026" })]);
+    expect(results).toEqual([]);
+    expect(errors[0]).toMatch(/unparseable date/);
+  });
+
+  it("drops a result with a non-numeric score and says so", () => {
+    const { results, errors } = normalizeAllResults([rawResult({ homeScore: "P-P" })]);
+    expect(results).toEqual([]);
+    expect(errors[0]).toMatch(/score/);
+  });
+
+  it("keeps a nil-all draw", () => {
+    const { results, errors } = normalizeAllResults([
+      rawResult({ homeScore: "0", awayScore: "0" }),
+    ]);
+    expect(errors).toEqual([]);
+    expect(results[0].ourScore).toBe(0);
+    expect(results[0].theirScore).toBe(0);
   });
 });
 

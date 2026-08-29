@@ -71,3 +71,58 @@ export function sortFixtures(fixtures) {
       a.fid.localeCompare(b.fid),
   );
 }
+
+// A score of 0 is a real score and an empty string is not a score at all. Number("")
+// is 0, so this must never go anywhere near it: coercing a blank to nil-all would
+// invent a draw that was never played.
+export function parseScore(raw) {
+  const s = String(raw ?? "").trim();
+  return /^\d+$/.test(s) ? Number(s) : null;
+}
+
+export function normalizeResult(raw) {
+  const isHome = raw.homeClubId === CLUB_ID;
+  const home = parseScore(raw.homeScore);
+  const away = parseScore(raw.awayScore);
+  return {
+    fid: raw.fid,
+    teamId: raw.teamId,
+    date: isoDate(raw.date),
+    isHome,
+    ourTeam: isHome ? raw.homeTeam : raw.awayTeam,
+    opponent: isHome ? raw.awayTeam : raw.homeTeam,
+    // Stored from OUR point of view, with isHome recording which side we were, so a
+    // stored result reads correctly on its own and home-first ordering stays a
+    // rendering concern rather than a storage one.
+    ourScore: isHome ? home : away,
+    theirScore: isHome ? away : home,
+    venue: raw.venue,
+    competition: raw.competition,
+  };
+}
+
+export function normalizeAllResults(raws) {
+  const results = [];
+  const errors = [];
+  for (const raw of raws ?? []) {
+    const r = normalizeResult(raw);
+    if (!r.date) {
+      errors.push(`fid ${raw.fid}: unparseable date "${raw.date}"`);
+      continue;
+    }
+    if (r.ourScore === null || r.theirScore === null) {
+      errors.push(`fid ${raw.fid}: unreadable score "${raw.homeScore}-${raw.awayScore}"`);
+      continue;
+    }
+    results.push(r);
+  }
+  return { results: sortResults(results), errors };
+}
+
+// Stable order keeps the committed results.json diff to the lines that actually
+// changed. Ascending, like fixtures - the round-up reverses for display.
+export function sortResults(results) {
+  return [...results].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.fid.localeCompare(b.fid),
+  );
+}
