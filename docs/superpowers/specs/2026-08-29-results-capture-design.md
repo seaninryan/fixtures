@@ -223,10 +223,21 @@ that weekend, silently renaming the squad. Results take their labels from
 `changeReport` does.
 
 **A squad whose season has ended keeps its label.** Once a squad has no upcoming
-fixtures it leaves the fixture set, but its results remain. `teams.json` is
-config, persists, and beats derivation, so a labelled squad is safe. For a squad
-that was never in `teams.json` and has now left the fixtures, fall back to the
-result's own `ourTeam` string rather than printing an empty label.
+fixtures it leaves the fixture set, but its results remain.
+
+This does NOT fall out of "config beats derivation" on its own, which is what an
+earlier draft of this spec claimed and what the final review disproved.
+`resolveTeams` only builds entries for squads present in the fixture list it is
+given - that list is what `deriveLabels` counts - so a retired squad gets no
+entry at all and falls through to the raw feed name even when `teams.json`
+explicitly names it.
+
+The round-up therefore consults config directly to fill that gap, and only that
+gap: a squad still in the fixture list keeps whatever `resolveTeams` decided,
+collision handling included. Derivation genuinely cannot help a retired squad;
+config still can. For a squad that was never in `teams.json` and has now left the
+fixtures, fall back to the result's own `ourTeam` string rather than printing an
+empty label - visibly unfinished, never silently wrong.
 
 **A score of zero is a score.** `0` and `""` must not be conflated. A block with
 an empty `homescore` is an unplayed fixture that has appeared in the results
