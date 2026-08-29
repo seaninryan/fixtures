@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeResults, RESULTS_VERSION } from "../src/lib/results.js";
+import { mergeResults, RESULTS_VERSION, formatResultLine, roundup, roundupLines } from "../src/lib/results.js";
 
 const result = (over = {}) => ({
   fid: "1", teamId: "11", date: "2026-08-29", isHome: true,
@@ -54,5 +54,89 @@ describe("mergeResults", () => {
   it("tolerates a null incoming list", () => {
     const prev = { version: 1, results: [result({ fid: "1" })] };
     expect(mergeResults(prev, null, "now").results).toHaveLength(1);
+  });
+});
+
+const config = {
+  version: 1,
+  teams: {
+    "11": { label: "U14A Boys", color: "#d9c53c" },
+    "22": { label: "U14B Boys", color: "#4d9ae5" },
+  },
+};
+
+const home = result({ fid: "1", teamId: "11", isHome: true, ourScore: 1, theirScore: 0, opponent: "St Bernards" });
+const away = result({
+  fid: "2", teamId: "22", isHome: false, ourScore: 3, theirScore: 4,
+  ourTeam: "Craughwell United B", opponent: "Cregmore/Claregalway C",
+});
+
+describe("formatResultLine", () => {
+  it("writes the home game with our label first", () => {
+    expect(formatResultLine(home, { 11: "U14A Boys" }))
+      .toBe("U14A Boys 1-0 St Bernards");
+  });
+
+  it("writes the away game with the opponent first", () => {
+    expect(formatResultLine(away, { 22: "U14B Boys" }))
+      .toBe("Cregmore/Claregalway C 4-3 U14B Boys");
+  });
+
+  it("falls back to the team name when a squad has no label", () => {
+    expect(formatResultLine(away, {})).toBe("Cregmore/Claregalway C 4-3 Craughwell United B");
+  });
+
+  it("renders a nil-all draw", () => {
+    expect(formatResultLine(result({ teamId: "11", ourScore: 0, theirScore: 0 }), { 11: "U14A Boys" }))
+      .toBe("U14A Boys 0-0 St Bernards");
+  });
+});
+
+describe("roundup", () => {
+  it("matches the agreed format exactly", () => {
+    expect(roundup([home, away], config, "Last weekend", "2026-08-31")).toBe(
+      "SATURDAY 29 AUGUST\n\nU14A Boys 1-0 St Bernards\nCregmore/Claregalway C 4-3 U14B Boys",
+    );
+  });
+
+  it("puts the newest day first", () => {
+    const later = result({ fid: "3", teamId: "11", date: "2026-08-30" });
+    const text = roundup([home, later], config, "Last weekend", "2026-08-31");
+    expect(text.indexOf("SUNDAY 30 AUGUST")).toBeLessThan(text.indexOf("SATURDAY 29 AUGUST"));
+  });
+
+  it("never indents a result line", () => {
+    for (const line of roundup([home, away], config, "All", "2026-08-31").split("\n")) {
+      expect(line).toBe(line.trimStart());
+    }
+  });
+
+  it("says so when the window is empty", () => {
+    expect(roundup([], config, "Last weekend", "2026-08-31")).toMatch(/No results/);
+  });
+
+  it("excludes results outside the window", () => {
+    const old = result({ fid: "4", teamId: "11", date: "2026-07-01" });
+    expect(roundup([old], config, "Last weekend", "2026-08-31")).toMatch(/No results/);
+  });
+});
+
+describe("roundupLines label resolution", () => {
+  it("keeps the A/B letter when only one of two same-age squads played", () => {
+    // The bug that has appeared three times: deriveLabels decides whether to show the
+    // A/B letter by counting the club's squads at that age and gender. Resolving over
+    // the RESULTS alone would count one U14 side and rename "U14A Boys" to "U14 Boys".
+    const fixtures = [
+      { fid: "90", teamId: "11", date: "2026-09-05", time: "12:00", isHome: true,
+        ourTeam: "Craughwell United", opponent: "X", venue: "Craughwell",
+        competition: "GFA Boys U14 Championship 1", comment: "" },
+      { fid: "91", teamId: "22", date: "2026-09-05", time: "14:00", isHome: true,
+        ourTeam: "Craughwell United B", opponent: "Y", venue: "Craughwell",
+        competition: "GFA Boys U14 Division 4", comment: "" },
+    ];
+    const lines = roundupLines([home], {}, "All", "2026-08-31", fixtures);
+    const text = lines.map((l) => l.text).join("\n");
+    expect(text).toContain("U14A Boys");
+    expect(text).not.toContain("U14 Boys 1-0");
   });
 });

@@ -1,5 +1,8 @@
 // Pure. The accumulated results store, and the round-up text built from it.
 import { sortResults } from "./normalize.js";
+import { resultWindowPredicate } from "./window.js";
+import { resolveTeams } from "./teams.js";
+import { squadColor } from "./squadColors.js";
 
 export const RESULTS_VERSION = 1;
 
@@ -21,4 +24,87 @@ export function mergeResults(previous, incoming, now) {
     updatedAt: now,
     results: sortResults([...byFid.values()]),
   };
+}
+
+const DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+const MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+  "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+
+// "2026-08-29" -> "SATURDAY 29 AUGUST". Same shape as the announcement's heading, so a
+// results block and a fixtures block look like siblings pasted into the same thread.
+function dayHeading(iso) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+// Home team first, always - the football convention. Our side is written as its squad
+// label and never alongside the club name, exactly as the fixtures announcement writes
+// "U14A Boys v St Bernards".
+export function formatResultLine(result, labels) {
+  const label = labels[result.teamId] ?? result.ourTeam;
+  return result.isHome
+    ? `${label} ${result.ourScore}-${result.theirScore} ${result.opponent}`
+    : `${result.opponent} ${result.theirScore}-${result.ourScore} ${label}`;
+}
+
+// The round-up as a list of lines, one entry per rendered line. Mirrors announceLines
+// so the site can put a squad's colour BESIDE a result rather than inside it: a swatch
+// in the gutter is not text, so it cannot be copied into a WhatsApp message.
+//
+// Line kinds: blank | day | result | note. Only a `result` line carries teamId/color.
+//
+// `fixtures` is how labels are resolved and matters for correctness - see below. It
+// defaults to `results` itself so a caller with no separate fixtures list still gets
+// configured labels applied (results carry `ourTeam`/`competition` too), but that
+// default is only a fallback: a caller that actually has the fixture list - the site,
+// check.mjs - must pass it explicitly, because deriving the A/B letter from a windowed
+// subset of results is exactly the bug described below.
+export function roundupLines(results, config, windowName, today, fixtures = results ?? []) {
+  const all = results ?? [];
+  const chosen = all
+    .filter(resultWindowPredicate(windowName, today))
+    // Newest day first, then by squad label so the same squad lands in the same place
+    // week to week. The fid tiebreak makes the order TOTAL, so the round-up never
+    // depends on how the caller happened to sort.
+    .sort((a, b) =>
+      b.date.localeCompare(a.date) ||
+      String(a.teamId).localeCompare(String(b.teamId)) ||
+      String(a.fid).localeCompare(String(b.fid)));
+
+  if (chosen.length === 0) {
+    return [{ kind: "note", text: "No results in this window." }];
+  }
+
+  // Resolved over every FIXTURE, not over the results: deriveLabels shows the A/B
+  // letter only when the club runs more than one side at that age and gender, and
+  // resolving over a weekend's results alone would count one U14 side and silently
+  // rename "U14A Boys" to "U14 Boys". Squads whose season has ended have left the
+  // fixture list entirely, which is why teams.json - config, and persistent - is
+  // passed too, and why formatResultLine falls back to the stored team name.
+  const { labels } = resolveTeams(fixtures, config);
+
+  const lines = [];
+  let currentDay = null;
+  for (const result of chosen) {
+    if (result.date !== currentDay) {
+      if (currentDay !== null) lines.push({ kind: "blank", text: "" });
+      currentDay = result.date;
+      lines.push({ kind: "day", text: dayHeading(currentDay) });
+      lines.push({ kind: "blank", text: "" });
+    }
+    lines.push({
+      kind: "result",
+      text: formatResultLine(result, labels),
+      teamId: result.teamId,
+      color: squadColor(result.teamId, config).bg,
+    });
+  }
+  return lines;
+}
+
+// The plain text: what Copy puts on the clipboard.
+export function roundup(results, config, windowName, today, fixtures = results ?? []) {
+  return roundupLines(results, config, windowName, today, fixtures)
+    .map((line) => line.text)
+    .join("\n");
 }
