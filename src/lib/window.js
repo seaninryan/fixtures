@@ -34,3 +34,34 @@ export function windowPredicate(name, today) {
   const { from, to } = windowRange(name, today);
   return (fixture) => fixture.date >= from && fixture.date <= to;
 }
+
+// The backward twins, for results. Added as separate exports rather than by
+// generalising windowRange: that function is load-bearing for the announcement and
+// its weekend logic is subtle enough not to disturb for the sake of sharing five
+// lines of arithmetic.
+export const RESULT_WINDOWS = ["Last weekend", "Last 7 days", "Last 14 days", "All"];
+
+export function resultWindowRange(name, today) {
+  if (name === "Last weekend") {
+    const dow = dayOfWeek(today);
+    // On the weekend itself, "last weekend" is the one in progress - a Sunday-afternoon
+    // round-up must include Saturday's games. Saturday's `to` runs to Sunday even though
+    // Sunday has not happened: results only ever exist in the past, so the extra day
+    // selects nothing, and it keeps this symmetrical with "This weekend".
+    if (dow === 6) return { from: today, to: addDays(today, 1) };
+    if (dow === 0) return { from: addDays(today, -1), to: today };
+    // Monday to Friday: the Saturday and Sunday just gone, so a Monday-morning
+    // round-up is the obvious thing to paste with no thought from whoever posts it.
+    const sunday = addDays(today, -dow);
+    return { from: addDays(sunday, -1), to: sunday };
+  }
+  if (name === "Last 7 days") return { from: addDays(today, -6), to: today };
+  if (name === "Last 14 days") return { from: addDays(today, -13), to: today };
+  // "All", and anything unrecognised: showing everything beats showing nothing.
+  return { from: "0000-01-01", to: "9999-12-31" };
+}
+
+export function resultWindowPredicate(name, today) {
+  const { from, to } = resultWindowRange(name, today);
+  return (result) => result.date >= from && result.date <= to;
+}

@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { WINDOWS, windowRange, windowPredicate } from "../src/lib/window.js";
+import {
+  WINDOWS,
+  windowRange,
+  windowPredicate,
+  RESULT_WINDOWS,
+  resultWindowRange,
+  resultWindowPredicate,
+} from "../src/lib/window.js";
 import { parse } from "../src/lib/parse.js";
 import { normalizeAll } from "../src/lib/normalize.js";
 import { FIXTURE_COUNT } from "./fixtures/meta.js";
@@ -253,5 +260,59 @@ describe("windowPredicate against the real capture", () => {
     expect(dates("Next 14 days"))
       .toEqual(["2026-09-09", "2026-09-12", "2026-09-13", "2026-09-19", "2026-09-20"]);
     expect(dates("All").at(-1)).toBe("2027-01-13");
+  });
+});
+
+// 2026-08-29 is a Saturday, 08-30 Sunday, 08-31 Monday, 09-04 Friday.
+describe("result windows", () => {
+  it("offers exactly the four backward windows", () => {
+    expect(RESULT_WINDOWS).toEqual(["Last weekend", "Last 7 days", "Last 14 days", "All"]);
+  });
+
+  it("on Saturday, last weekend is the weekend in progress", () => {
+    expect(resultWindowRange("Last weekend", "2026-08-29"))
+      .toEqual({ from: "2026-08-29", to: "2026-08-30" });
+  });
+
+  it("on Sunday, last weekend includes Saturday's games", () => {
+    expect(resultWindowRange("Last weekend", "2026-08-30"))
+      .toEqual({ from: "2026-08-29", to: "2026-08-30" });
+  });
+
+  it("on Monday, last weekend is the weekend just gone", () => {
+    expect(resultWindowRange("Last weekend", "2026-08-31"))
+      .toEqual({ from: "2026-08-29", to: "2026-08-30" });
+  });
+
+  it("on Friday, last weekend is still the weekend just gone", () => {
+    expect(resultWindowRange("Last weekend", "2026-09-04"))
+      .toEqual({ from: "2026-08-29", to: "2026-08-30" });
+  });
+
+  it("counts back inclusively for the rolling windows", () => {
+    expect(resultWindowRange("Last 7 days", "2026-08-30"))
+      .toEqual({ from: "2026-08-24", to: "2026-08-30" });
+    expect(resultWindowRange("Last 14 days", "2026-08-30"))
+      .toEqual({ from: "2026-08-17", to: "2026-08-30" });
+  });
+
+  it("shows everything for All, rather than nothing", () => {
+    const { from, to } = resultWindowRange("All", "2026-08-30");
+    expect(from < "1900-01-01").toBe(true);
+    expect(to).toBe("9999-12-31");
+  });
+
+  it("selects results by date", () => {
+    const inWindow = resultWindowPredicate("Last weekend", "2026-08-31");
+    expect(inWindow({ date: "2026-08-29" })).toBe(true);
+    expect(inWindow({ date: "2026-08-30" })).toBe(true);
+    expect(inWindow({ date: "2026-08-28" })).toBe(false);
+    expect(inWindow({ date: "2026-08-31" })).toBe(false);
+  });
+
+  it("leaves the forward windows untouched", () => {
+    expect(WINDOWS).toEqual(["This weekend", "Next 7 days", "Next 14 days", "All"]);
+    expect(windowRange("Next 7 days", "2026-08-30"))
+      .toEqual({ from: "2026-08-30", to: "2026-09-05" });
   });
 });
