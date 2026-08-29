@@ -92,21 +92,32 @@ describe("formatResultLine", () => {
   });
 });
 
+// A real fixture list for the two squads under test. roundup resolves labels over
+// FIXTURES, so callers must supply them - see the comment in results.js.
+const squadFixtures = [
+  { fid: "90", teamId: "11", date: "2026-09-05", time: "12:00", isHome: true,
+    ourTeam: "Craughwell United", opponent: "X", venue: "Craughwell",
+    competition: "GFA Boys U14 Championship 1", comment: "" },
+  { fid: "91", teamId: "22", date: "2026-09-05", time: "14:00", isHome: true,
+    ourTeam: "Craughwell United B", opponent: "Y", venue: "Craughwell",
+    competition: "GFA Boys U14 Division 4", comment: "" },
+];
+
 describe("roundup", () => {
   it("matches the agreed format exactly", () => {
-    expect(roundup([home, away], config, "Last weekend", "2026-08-31")).toBe(
+    expect(roundup([home, away], config, "Last weekend", "2026-08-31", squadFixtures)).toBe(
       "SATURDAY 29 AUGUST\n\nU14A Boys 1-0 St Bernards\nCregmore/Claregalway C 4-3 U14B Boys",
     );
   });
 
   it("puts the newest day first", () => {
     const later = result({ fid: "3", teamId: "11", date: "2026-08-30" });
-    const text = roundup([home, later], config, "Last weekend", "2026-08-31");
+    const text = roundup([home, later], config, "Last weekend", "2026-08-31", squadFixtures);
     expect(text.indexOf("SUNDAY 30 AUGUST")).toBeLessThan(text.indexOf("SATURDAY 29 AUGUST"));
   });
 
   it("never indents a result line", () => {
-    for (const line of roundup([home, away], config, "All", "2026-08-31").split("\n")) {
+    for (const line of roundup([home, away], config, "All", "2026-08-31", squadFixtures).split("\n")) {
       expect(line).toBe(line.trimStart());
     }
   });
@@ -122,6 +133,16 @@ describe("roundup", () => {
 });
 
 describe("roundupLines label resolution", () => {
+  it("does not derive labels from the results when fixtures are omitted", () => {
+    // Guards the default. If `fixtures` ever defaults to `results`, an UNCONFIGURED
+    // squad gets a label derived by counting only the squads that happened to play -
+    // "U14 Boys" on a weekend when only the A side did. Falling back to the raw feed
+    // name is the correct failure: visibly unfinished beats silently mislabelled.
+    const text = roundup([home], {}, "All", "2026-08-31").trim();
+    expect(text).toContain("Craughwell United 1-0 St Bernards");
+    expect(text).not.toContain("U14 Boys");
+  });
+
   it("keeps the A/B letter when only one of two same-age squads played", () => {
     // The bug that has appeared three times: deriveLabels decides whether to show the
     // A/B letter by counting the club's squads at that age and gender. Resolving over

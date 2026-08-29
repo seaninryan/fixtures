@@ -59,7 +59,7 @@ export function formatResultLine(result, labels) {
 // default is only a fallback: a caller that actually has the fixture list - the site,
 // check.mjs - must pass it explicitly, because deriving the A/B letter from a windowed
 // subset of results is exactly the bug described below.
-export function roundupLines(results, config, windowName, today, fixtures = results ?? []) {
+export function roundupLines(results, config, windowName, today, fixtures = []) {
   const all = results ?? [];
   const chosen = all
     .filter(resultWindowPredicate(windowName, today))
@@ -81,6 +81,16 @@ export function roundupLines(results, config, windowName, today, fixtures = resu
   // rename "U14A Boys" to "U14 Boys". Squads whose season has ended have left the
   // fixture list entirely, which is why teams.json - config, and persistent - is
   // passed too, and why formatResultLine falls back to the stored team name.
+  // NEVER pass `results` here, and never default this parameter to them. deriveLabels
+  // decides whether to show the A/B letter by COUNTING the club's squads at that age and
+  // gender in the list it is given, so resolving over a weekend's results would count one
+  // U14 side on a weekend only one played and silently rename "U14A Boys" to "U14 Boys".
+  // A configured label happens to mask this (config beats derivation), which is exactly
+  // what makes it dangerous: it looks correct until an unconfigured squad plays.
+  //
+  // The `[]` default is deliberately the USELESS answer rather than a plausible one:
+  // omit fixtures and every line falls back to the raw feed name, visibly unfinished.
+  // That is this codebase's standing trade - never silently wrong.
   const { labels } = resolveTeams(fixtures, config);
 
   const lines = [];
@@ -103,7 +113,7 @@ export function roundupLines(results, config, windowName, today, fixtures = resu
 }
 
 // The plain text: what Copy puts on the clipboard.
-export function roundup(results, config, windowName, today, fixtures = results ?? []) {
+export function roundup(results, config, windowName, today, fixtures = []) {
   return roundupLines(results, config, windowName, today, fixtures)
     .map((line) => line.text)
     .join("\n");
