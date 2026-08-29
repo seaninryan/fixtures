@@ -88,7 +88,7 @@ export function deriveLabels(fixtures) {
 // the box on the site must hand the squad back to derivation rather than pin it to a
 // display name that renders as nothing. Anything that is not a string is not a label -
 // repaired the same way usableColor repairs a corrupt colour.
-function cleanLabel(label) {
+export function cleanLabel(label) {
   return typeof label === "string" ? label.trim() || null : null;
 }
 

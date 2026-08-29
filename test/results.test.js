@@ -133,6 +133,43 @@ describe("roundup", () => {
 });
 
 describe("roundupLines label resolution", () => {
+  // A squad's season ends before the club's does. Its results stay in the store forever
+  // while it leaves the fixture list, and resolveTeams only ever builds entries for
+  // squads in that list - so this is the one case where config must be consulted
+  // directly. The spec calls it out; it was missing until the final review found it.
+  const retired = result({
+    fid: "77", teamId: "99", date: "2026-08-29", isHome: true,
+    ourTeam: "Craughwell United U16", opponent: "Some Team",
+    ourScore: 2, theirScore: 1, competition: "GFA Boys U16 Division 1",
+  });
+  const otherSquadsFixtures = [{
+    fid: "90", teamId: "11", date: "2026-09-05", time: "12:00", isHome: true,
+    ourTeam: "Craughwell United", opponent: "X", venue: "Craughwell",
+    competition: "GFA Boys U14 Championship 1", comment: "",
+  }];
+
+  it("keeps a configured label for a squad whose season has ended", () => {
+    const cfg = { version: 1, teams: { "99": { label: "U16A Boys", color: "#3fb950" } } };
+    const text = roundup([retired], cfg, "All", "2026-08-31", otherSquadsFixtures);
+    expect(text).toContain("U16A Boys 2-1 Some Team");
+    expect(text).not.toContain("Craughwell United U16");
+  });
+
+  it("shows a retired squad's raw feed name when nothing configured it", () => {
+    // Derivation cannot help a squad that has left the fixture list, and inventing a
+    // label is the guess this codebase refuses to make. Visibly unfinished is correct.
+    const text = roundup([retired], {}, "All", "2026-08-31", otherSquadsFixtures);
+    expect(text).toContain("Craughwell United U16 2-1 Some Team");
+  });
+
+  it("does not let the config fallback override a live squad's resolved label", () => {
+    // The fill must only patch GAPS. A squad still in the fixture list keeps whatever
+    // resolveTeams decided, including its collision handling.
+    const cfg = { version: 1, teams: { "11": { label: "U14A Boys", color: "#d9c53c" } } };
+    const text = roundup([home], cfg, "All", "2026-08-31", otherSquadsFixtures);
+    expect(text).toContain("U14A Boys 1-0 St Bernards");
+  });
+
   it("does not derive labels from the results when fixtures are omitted", () => {
     // Guards the default. If `fixtures` ever defaults to `results`, an UNCONFIGURED
     // squad gets a label derived by counting only the squads that happened to play -
