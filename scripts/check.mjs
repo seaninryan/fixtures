@@ -107,6 +107,7 @@ async function main() {
     previous: readJson("latest.json", null),
     config: readJson("teams.json", null),
     history: readJson("changes.json", []),
+    previousResults: readJson("results.json", null),
     now,
     today,
     siteUrl: SITE_URL,
@@ -124,12 +125,14 @@ async function main() {
   writeJson("latest.json", out.snapshot);
   writeJson("teams.json", out.config);
   writeJson("changes.json", history);
+  writeJson("results.json", out.results);
 
   if (out.firstRun) {
     console.log(`first run: ${out.snapshot.fixtures.length} fixtures recorded as the baseline`);
   } else {
     console.log(`${out.snapshot.fixtures.length} fixtures, ${out.changes.length} changes`);
   }
+  console.log(`${out.results.results.length} results stored`);
   if (out.unknown.length) {
     console.log(`squads still needing a label: ${out.unknown.join(", ")}`);
   }
