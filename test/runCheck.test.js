@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { runCheck, SHRINK_LIMIT } from "../src/lib/runCheck.js";
-import { FIXTURE_COUNT, TEAM_COUNT } from "./fixtures/meta.js";
+import { FIXTURE_COUNT, TEAM_COUNT, RESULT_COUNT } from "./fixtures/meta.js";
 
 const html = readFileSync(new URL("./fixtures/club2960.html", import.meta.url), "utf8");
+const resultsHtml = readFileSync(
+  new URL("./fixtures/club2960-results.html", import.meta.url), "utf8",
+);
 const NOW = "2026-08-25T06:00:11Z";
 const TODAY = "2026-08-25";
 
@@ -428,5 +431,53 @@ describe("runCheck aborts when the fixture count collapses", () => {
       expect(out.firstRun).toBe(true);
       expect(out.snapshot.fixtures).toHaveLength(FIXTURE_COUNT);
     }
+  });
+});
+
+describe("results", () => {
+  const base = { now: "2026-08-30T12:00:00.000Z", today: "2026-08-30", config: null };
+
+  it("accumulates results into the store", () => {
+    const out = runCheck({ ...base, html: resultsHtml, previous: null, previousResults: null });
+    expect(out.results.results).toHaveLength(RESULT_COUNT);
+    expect(out.results.updatedAt).toBe(base.now);
+  });
+
+  it("keeps stored results the feed has already forgotten", () => {
+    const older = {
+      version: 1,
+      results: [{
+        fid: "999999", teamId: "11", date: "2026-08-01", isHome: true,
+        ourTeam: "Craughwell United", opponent: "Old Opponent",
+        ourScore: 2, theirScore: 2, venue: "Craughwell", competition: "X",
+      }],
+    };
+    const out = runCheck({ ...base, html: resultsHtml, previous: null, previousResults: older });
+    expect(out.results.results.some((r) => r.fid === "999999")).toBe(true);
+    expect(out.results.results).toHaveLength(RESULT_COUNT + 1);
+  });
+
+  it("treats a response with no results as normal, not as a failure", () => {
+    // Most days have no games. This must never look like a parse failure.
+    const out = runCheck({ ...base, html, previous: null, previousResults: null });
+    expect(out.results.results).toEqual([]);
+    expect(out.snapshot.fixtures.length).toBeGreaterThan(0);
+  });
+
+  it("does not let results affect the shrink guard", () => {
+    // The guard counts fixtures only. A response with fewer fixtures than the baseline
+    // must still be judged on its fixtures.
+    const previous = { version: 1, fixtures: new Array(100).fill(null).map((_, i) => ({
+      fid: String(i), teamId: "11", date: "2026-09-05", time: "12:00", isHome: true,
+      ourTeam: "C", opponent: "X", venue: "V", competition: "K", comment: "",
+    })) };
+    expect(() => runCheck({ ...base, html: resultsHtml, previous, previousResults: null }))
+      .toThrow(/collapsed/);
+  });
+
+  it("writes nothing when the fixtures guard fires, results included", () => {
+    // A payload bad enough to fail the guards must not have its results trusted either.
+    expect(() => runCheck({ ...base, html: "<html>nothing</html>", previous: null, previousResults: null }))
+      .toThrow();
   });
 });

@@ -4,7 +4,8 @@
 // part that must be tested, and a script that talks to the network and the filesystem is
 // the hardest place to test anything.
 import { parse } from "./parse.js";
-import { normalizeAll } from "./normalize.js";
+import { normalizeAll, normalizeAllResults } from "./normalize.js";
+import { mergeResults } from "./results.js";
 import { diff } from "./diff.js";
 import { seedConfig, resolveTeams } from "./teams.js";
 import { changeReport } from "./changeReport.js";
@@ -16,7 +17,7 @@ export const SNAPSHOT_VERSION = 1;
 // games played since the last run, and the club does not play half a season overnight.
 export const SHRINK_LIMIT = 0.5;
 
-export function runCheck({ html, previous, config, now, today, history = [], siteUrl, allowShrink = false }) {
+export function runCheck({ html, previous, previousResults, config, now, today, history = [], siteUrl, allowShrink = false }) {
   const parsed = parse(html);
   const { fixtures, errors: dateErrors } = normalizeAll(parsed.fixtures);
   const errors = [...parsed.errors, ...dateErrors];
@@ -44,6 +45,15 @@ export function runCheck({ html, previous, config, now, today, history = [], sit
   }
 
   const snapshot = { version: SNAPSHOT_VERSION, fetchedAt: now, fixtures };
+
+  // Results are merged AFTER the two guards above on purpose: if the payload was bad
+  // enough to fail them, its results are not to be trusted either, and nothing is
+  // written at all. Note there is deliberately NO zero-results guard - most days have
+  // no games, so an empty results list is the ordinary case, not a signal of failure.
+  const { results: parsedResults, errors: resultErrors } = normalizeAllResults(parsed.results);
+  errors.push(...resultErrors);
+  const results = mergeResults(previousResults, parsedResults, now);
+
   const nextConfig = seedConfig(fixtures, config);
   const { unknown } = resolveTeams(fixtures, nextConfig);
 
@@ -60,6 +70,7 @@ export function runCheck({ html, previous, config, now, today, history = [], sit
 
   return {
     snapshot,
+    results,
     config: nextConfig,
     changes,
     report,
