@@ -61,9 +61,13 @@ Field notes from the live pull:
 
 **Results age out, and fast.** The 2026-08-29 pull carried exactly **2** results
 blocks — that day's two games — while the earliest *fixture* present was 01 Sep.
-The feed is a rolling window, not an archive. How many days it retains is not
-yet known and cannot be established from a single pull; it must be observed.
-Design accordingly: **assume one day of retention**.
+The feed is a rolling window, not an archive.
+
+Retention, observed: both 29 Aug results were **still present on 30 Aug**, so the
+window is at least two days. That is a floor, not a guarantee — it was measured
+over one weekend and the league may prune on its own schedule. Design for **one
+day**: the extra day is slack that may not always be there, and nothing in the
+design should need it.
 
 This is the binding constraint on the whole design. A run that does not happen
 loses those results permanently, and the scheduler has already demonstrated a
