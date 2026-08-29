@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { parse } from "../src/lib/parse.js";
-import { FIXTURE_COUNT, TEAM_COUNT } from "./fixtures/meta.js";
+import { FIXTURE_COUNT, TEAM_COUNT, RESULTS_FIXTURE_COUNT, RESULT_COUNT } from "./fixtures/meta.js";
 
 const html = readFileSync(new URL("./fixtures/club2960.html", import.meta.url), "utf8");
 
@@ -178,5 +178,61 @@ describe("parse", () => {
     expect(errors).toEqual([]);
     expect(fixtures).toHaveLength(FIXTURE_COUNT);
     expect(fixtures.find((f) => f.fid === "6951014").comment).toBe("bad &#99999999; entity");
+  });
+});
+
+const resultsHtml = readFileSync(
+  new URL("./fixtures/club2960-results.html", import.meta.url), "utf8",
+);
+
+const RESULT_START = '<ul class="column-eight table-body results';
+
+describe("results blocks", () => {
+  it("returns results alongside fixtures from the same response", () => {
+    const { fixtures, results } = parse(resultsHtml);
+    expect(fixtures).toHaveLength(RESULTS_FIXTURE_COUNT);
+    expect(results).toHaveLength(RESULT_COUNT);
+  });
+
+  it("gives every result a fid and our team id", () => {
+    const { results } = parse(resultsHtml);
+    for (const r of results) {
+      expect(r.fid).toMatch(/^\d+$/);
+      expect(r.teamId).toMatch(/^\d+$/);
+    }
+  });
+
+  it("carries both scores as written", () => {
+    const { results } = parse(resultsHtml);
+    for (const r of results) {
+      expect(r.homeScore).toMatch(/^\d+$/);
+      expect(r.awayScore).toMatch(/^\d+$/);
+    }
+  });
+
+  it("keeps results out of the fixtures list", () => {
+    const { fixtures, results } = parse(resultsHtml);
+    const fixtureFids = new Set(fixtures.map((f) => f.fid));
+    for (const r of results) expect(fixtureFids.has(r.fid)).toBe(false);
+  });
+
+  it("returns an empty results array when the response has none", () => {
+    // The original golden predates results and contains none.
+    expect(parse(html).results).toEqual([]);
+  });
+
+  it("skips a results block whose score is empty - not yet played", () => {
+    const blank = resultsHtml.replace(/data-homescore="\d+"/, 'data-homescore=""');
+    const { results } = parse(blank);
+    expect(results).toHaveLength(RESULT_COUNT - 1);
+  });
+
+  it("does not throw on a results block with no fid", () => {
+    const parts = resultsHtml.split(new RegExp(`(?=${RESULT_START})`));
+    const i = parts.findIndex((p) => p.startsWith(RESULT_START));
+    parts[i] = parts[i].replace(/data-fid="\d+"/, 'data-fid=""');
+    const { results, errors } = parse(parts.join(""));
+    expect(results).toHaveLength(RESULT_COUNT - 1);
+    expect(errors.some((e) => /no data-fid/.test(e))).toBe(true);
   });
 });
