@@ -4,6 +4,7 @@ import AnnouncementTab from "../src/components/AnnouncementTab.jsx";
 import ResultsTab from "../src/components/ResultsTab.jsx";
 import ChangesTab from "../src/components/ChangesTab.jsx";
 import SquadsTab from "../src/components/SquadsTab.jsx";
+import { roundup } from "../src/lib/results.js";
 
 const config = { version: 1, teams: { "235380": { label: "U14A Boys", color: "#1f6feb" } } };
 const fixtures = [{
@@ -94,6 +95,56 @@ describe("ResultsTab", () => {
     );
     expect(html).toMatch(/No results/);
     expect(html).not.toMatch(/could not/i);
+  });
+
+  // fid "77" deliberately has no matching entry in resultsFixture (fid "1").
+  const resultsPendingFixtures = [{
+    fid: "77", teamId: "11", date: "2026-08-30", time: "18:30", isHome: false,
+    ourTeam: "Craughwell United", opponent: "Colga", venue: "Colga",
+    competition: "GFA Boys U14 Championship 1", comment: "",
+  }];
+  const nowAfter = { date: "2026-08-31", time: "09:00" };
+
+  it("lists a played game that has no result yet", () => {
+    const html = renderToStaticMarkup(
+      <ResultsTab results={{ version: 1, results: resultsFixture }}
+                  fixtures={resultsPendingFixtures} config={resultsConfig}
+                  today="2026-08-31" now={nowAfter} />,
+    );
+    expect(html).toContain("No result yet");
+    expect(html).toContain("U14A Boys @ Colga");
+  });
+
+  it("shows no pending section when every played game has a result", () => {
+    const html = renderToStaticMarkup(
+      <ResultsTab results={{ version: 1, results: resultsFixture }}
+                  fixtures={resultsSquadFixtures} config={resultsConfig}
+                  today="2026-08-31" now={nowAfter} />,
+    );
+    expect(html).not.toContain("No result yet");
+  });
+
+  // The pending card must sit AFTER the copyable one, and outside it. The copied text is
+  // built from roundupLines alone, so a pending line can never reach the clipboard.
+  it("keeps the pending section outside the copyable card", () => {
+    const html = renderToStaticMarkup(
+      <ResultsTab results={{ version: 1, results: resultsFixture }}
+                  fixtures={resultsPendingFixtures} config={resultsConfig}
+                  today="2026-08-31" now={nowAfter} />,
+    );
+    expect(html.indexOf("No result yet"))
+      .toBeGreaterThan(html.indexOf('class="card announcement"'));
+    expect(roundup(resultsFixture, resultsConfig, "Last 7 days", "2026-08-31",
+                   resultsPendingFixtures)).not.toContain("Colga");
+  });
+
+  it("renders no pending section when the store could not be loaded", () => {
+    const html = renderToStaticMarkup(
+      <ResultsTab results={null} fixtures={resultsPendingFixtures}
+                  config={resultsConfig} today="2026-08-31" now={nowAfter} />,
+    );
+    expect(html).not.toContain("No result yet");
+    expect(html).toMatch(/could not/i);
   });
 });
 

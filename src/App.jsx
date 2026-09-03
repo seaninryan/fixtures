@@ -141,7 +141,8 @@ export default function App() {
       </div>
       {tab === "Fixtures" && <AnnouncementTab fixtures={fixtures} config={config} today={today} />}
       {tab === "Results" && (
-        <ResultsTab results={results} fixtures={fixtures} config={config} today={today} />
+        <ResultsTab results={results} fixtures={fixtures} config={config}
+                    today={today} now={now} />
       )}
       {tab === "Changes" && <ChangesTab history={history} fixtures={fixtures} config={config} />}
       {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} onChange={setConfig} />}

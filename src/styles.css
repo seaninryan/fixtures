@@ -44,3 +44,11 @@ body { margin: 0; background: var(--bg); color: var(--fg);
 .gate { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 12px; padding: 16px;
   text-align: center; }
+/* The pending card. Monospace and the same gutter as the announcement so a pending line
+   and a result line read as siblings - but a SEPARATE card, outside the copyable one,
+   because this text must never reach the clipboard. */
+.card.pending { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-x: auto; }
+.card.pending .dim { margin: 10px 0 0; font-family: ui-sans-serif, system-ui, sans-serif; }
+.phead { margin: 0 0 8px; font-weight: 600; }
+.aline.pending { padding-left: 30px; }
