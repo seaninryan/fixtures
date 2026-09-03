@@ -159,9 +159,11 @@ which is true, and any grace figure would be invented.
 line carries `kind: "pending"`, and each has a `teamId` and a `color` — unlike
 the round-up there are no day or blank lines to interleave.
 
-The order is newest first, then by squad label, then by `fid`, which makes it
+The order is newest first, then by `teamId`, then by `fid`, which makes it
 **total**: the list never depends on how the caller happened to sort, the same
-rule `roundupLines` follows.
+rule `roundupLines` follows. The date line and the `v`/`@` convention come from
+`announce.js`'s existing `shortDate` and `formatFixtureLine` wording, reused
+rather than restated so the two cannot drift.
 
 **Labels resolve over the full `fixtures` list, never over the pending
 subset.** `deriveLabels` shows the A/B letter only when the club runs more than
