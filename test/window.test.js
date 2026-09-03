@@ -263,30 +263,30 @@ describe("windowPredicate against the real capture", () => {
   });
 });
 
-// 2026-08-29 is a Saturday, 08-30 Sunday, 08-31 Monday, 09-04 Friday.
+// 2026-08-29 is a Saturday, 08-30 Sunday, 08-31 Monday, 09-01 Tuesday,
+// 09-02 Wednesday, 09-03 Thursday, 09-04 Friday.
 describe("result windows", () => {
-  it("offers exactly the four backward windows", () => {
-    expect(RESULT_WINDOWS).toEqual(["Last weekend", "Last 7 days", "Last 14 days", "All"]);
+  it("offers exactly the three backward windows", () => {
+    expect(RESULT_WINDOWS).toEqual(["Last 7 days", "Last 14 days", "All"]);
   });
 
-  it("on Saturday, last weekend is the weekend in progress", () => {
-    expect(resultWindowRange("Last weekend", "2026-08-29"))
-      .toEqual({ from: "2026-08-29", to: "2026-08-30" });
+  // The defect this replaced: "Last weekend" was the Results tab's default, and on a
+  // Thursday it selected Sat+Sun only. Midweek evening kick-offs are routine for this
+  // club, so it hid half the store most weeks.
+  it("no longer offers a weekend-only window", () => {
+    expect(RESULT_WINDOWS).not.toContain("Last weekend");
   });
 
-  it("on Sunday, last weekend includes Saturday's games", () => {
-    expect(resultWindowRange("Last weekend", "2026-08-30"))
-      .toEqual({ from: "2026-08-29", to: "2026-08-30" });
+  it("treats a stale window name as All, rather than as nothing", () => {
+    expect(resultWindowRange("Last weekend", "2026-09-03"))
+      .toEqual(resultWindowRange("All", "2026-09-03"));
   });
 
-  it("on Monday, last weekend is the weekend just gone", () => {
-    expect(resultWindowRange("Last weekend", "2026-08-31"))
-      .toEqual({ from: "2026-08-29", to: "2026-08-30" });
-  });
-
-  it("on Friday, last weekend is still the weekend just gone", () => {
-    expect(resultWindowRange("Last weekend", "2026-09-04"))
-      .toEqual({ from: "2026-08-29", to: "2026-08-30" });
+  it("selects midweek results, which is the whole point of the change", () => {
+    const inWindow = resultWindowPredicate("Last 7 days", "2026-09-03");
+    expect(inWindow({ date: "2026-08-31" })).toBe(true); // Monday
+    expect(inWindow({ date: "2026-09-01" })).toBe(true); // Tuesday
+    expect(inWindow({ date: "2026-09-02" })).toBe(true); // Wednesday
   });
 
   it("counts back inclusively for the rolling windows", () => {
@@ -303,11 +303,11 @@ describe("result windows", () => {
   });
 
   it("selects results by date", () => {
-    const inWindow = resultWindowPredicate("Last weekend", "2026-08-31");
-    expect(inWindow({ date: "2026-08-29" })).toBe(true);
-    expect(inWindow({ date: "2026-08-30" })).toBe(true);
-    expect(inWindow({ date: "2026-08-28" })).toBe(false);
-    expect(inWindow({ date: "2026-08-31" })).toBe(false);
+    const inWindow = resultWindowPredicate("Last 7 days", "2026-09-03");
+    expect(inWindow({ date: "2026-08-28" })).toBe(true);
+    expect(inWindow({ date: "2026-09-03" })).toBe(true);
+    expect(inWindow({ date: "2026-08-27" })).toBe(false);
+    expect(inWindow({ date: "2026-09-04" })).toBe(false);
   });
 
   it("leaves the forward windows untouched", () => {

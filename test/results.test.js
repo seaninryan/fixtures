@@ -105,14 +105,14 @@ const squadFixtures = [
 
 describe("roundup", () => {
   it("matches the agreed format exactly", () => {
-    expect(roundup([home, away], config, "Last weekend", "2026-08-31", squadFixtures)).toBe(
+    expect(roundup([home, away], config, "Last 7 days", "2026-08-31", squadFixtures)).toBe(
       "SATURDAY 29 AUGUST\n\nU14A Boys 1-0 St Bernards\nCregmore/Claregalway C 4-3 U14B Boys",
     );
   });
 
   it("puts the newest day first", () => {
     const later = result({ fid: "3", teamId: "11", date: "2026-08-30" });
-    const text = roundup([home, later], config, "Last weekend", "2026-08-31", squadFixtures);
+    const text = roundup([home, later], config, "Last 7 days", "2026-08-31", squadFixtures);
     expect(text.indexOf("SUNDAY 30 AUGUST")).toBeLessThan(text.indexOf("SATURDAY 29 AUGUST"));
   });
 
@@ -123,12 +123,12 @@ describe("roundup", () => {
   });
 
   it("says so when the window is empty", () => {
-    expect(roundup([], config, "Last weekend", "2026-08-31")).toMatch(/No results/);
+    expect(roundup([], config, "Last 7 days", "2026-08-31")).toMatch(/No results/);
   });
 
   it("excludes results outside the window", () => {
     const old = result({ fid: "4", teamId: "11", date: "2026-07-01" });
-    expect(roundup([old], config, "Last weekend", "2026-08-31")).toMatch(/No results/);
+    expect(roundup([old], config, "Last 7 days", "2026-08-31")).toMatch(/No results/);
   });
 });
 

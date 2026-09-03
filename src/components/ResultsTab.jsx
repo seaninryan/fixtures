@@ -7,7 +7,7 @@ import { RESULT_WINDOWS } from "../lib/window.js";
 // know, and rendering them identically would quietly turn a load failure into a
 // confident "no games".
 export default function ResultsTab({ results, fixtures, config, today }) {
-  const [windowName, setWindowName] = useState("Last weekend");
+  const [windowName, setWindowName] = useState("Last 7 days");
   const [copied, setCopied] = useState(false);
 
   if (results === null) {
