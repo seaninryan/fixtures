@@ -25,7 +25,11 @@ function dayHeading(iso) {
 }
 
 // "2026-08-29" -> "Sat 29 Aug"
-function shortDate(iso) {
+//
+// Exported for pending.js, which prints the same format. One builder, so the two
+// cannot drift. Date is applied only to a date-only string in UTC - never to a
+// kick-off, which would move it by an hour for half the year.
+export function shortDate(iso) {
   const d = asDate(iso);
   return `${DAYS_SHORT[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS_SHORT[d.getUTCMonth()]}`;
 }

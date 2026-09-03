@@ -50,6 +50,10 @@ lives in a unit-tested pure function; new derivations belong in lib with tests.
 
 - `runCheck.js` — the whole pipeline minus I/O. The safety rules live here.
 - `diff.js` — change detection. `announce.js` — the announcement text.
+- `pending.js` — games whose kick-off has passed with no result yet. Derived at
+  read time from the snapshot and the results store; nothing is persisted, so
+  the data repo's workflow is unaffected. `clock.js` — the club's local date and
+  time as strings, and the only place a `Date` is unwrapped.
 - `announce.js` is imported by **both** the site and `check.mjs`, so what you copy
   out of the app and what the email quotes cannot drift.
 
@@ -75,6 +79,12 @@ offline runs.
   filtered list silently renames squads. This bug has appeared three times.
 - **Times are strings, never `Date` objects.** A UTC round-trip moves every
   kick-off by an hour for half the year.
+- **The site's `today` is the club's local date, never UTC.** Ireland is UTC+1
+  for half the year, so a UTC date is a day behind between Irish midnight and
+  01:00 and every window then selects yesterday. `scripts/check.mjs` stays on
+  UTC on purpose: the cron runs around 11:00, when the two always agree.
+- **There is no weekend-only results window.** This club plays midweek evenings
+  routinely, and a weekend-only default hid half the results store.
 - **`parse.js` never throws.** One bad block costs that block.
 - **A missing `latest.json` is an error state, not a spinner.** The site reads it
   across origins, so failure is a real path and must be visible.

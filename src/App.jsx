@@ -8,6 +8,7 @@ import {
   initAuth, signIn, signOut, getAccessToken, accountEmail,
 } from "./lib/googleAuth.js";
 import { isOwner } from "./lib/owner.js";
+import { clubNow } from "./lib/clock.js";
 
 const TABS = ["Fixtures", "Results", "Changes", "Squads"];
 
@@ -122,7 +123,12 @@ export default function App() {
   }
 
   const { snapshot, history, results } = state;
-  const today = new Date().toISOString().slice(0, 10);
+  // The club's local date, not UTC. Ireland is UTC+1 for half the year, so a UTC date
+  // is a day behind between Irish midnight and 01:00 - every window would then select
+  // yesterday's games. `now` also carries the time, which the Results tab needs to tell
+  // whether a kick-off has passed.
+  const now = clubNow(new Date());
+  const today = now.date;
   const fixtures = snapshot.fixtures ?? [];
 
   return (
@@ -135,7 +141,8 @@ export default function App() {
       </div>
       {tab === "Fixtures" && <AnnouncementTab fixtures={fixtures} config={config} today={today} />}
       {tab === "Results" && (
-        <ResultsTab results={results} fixtures={fixtures} config={config} today={today} />
+        <ResultsTab results={results} fixtures={fixtures} config={config}
+                    today={today} now={now} />
       )}
       {tab === "Changes" && <ChangesTab history={history} fixtures={fixtures} config={config} />}
       {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} onChange={setConfig} />}
