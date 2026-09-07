@@ -4,6 +4,8 @@
 // here rather than in the component, because the geometry is the part most likely to be
 // subtly wrong and this is the only place it can be unit-tested without a DOM.
 import { resolveTeams, fillLabelGaps } from "./teams.js";
+import { weekStart, addDays } from "./window.js";
+import { squadColor, strokeOn, squadDash } from "./squadColors.js";
 
 // 3 for a win, 1 for a draw, 0 for a loss. Stated flatly rather than configured: it is
 // the standard, and a knob nobody turns is a knob that rots. If the GFA ever differs,
@@ -104,4 +106,80 @@ export function defaultSelection(records, n = DEFAULT_SELECTED) {
     .sort((a, b) => b.played - a.played || a.label.localeCompare(b.label))
     .slice(0, n)
     .map((r) => r.teamId);
+}
+
+export const FORM_WINDOWS = ["Last 5 weeks", "Full season"];
+export const SHORT_WINDOW_WEEKS = 5;
+
+const nextWeek = (iso) => addDays(iso, 7);
+
+// The chart's x values: consecutive Mondays, oldest first.
+//
+// The short window is clamped to the first week that has a result rather than padded
+// back five weeks - an axis of empty weeks implies a season that has not happened yet.
+export function weekAxis(results, windowName, today) {
+  const dates = (results ?? []).map((r) => r.date).sort();
+  if (dates.length === 0) return [];
+
+  const current = weekStart(today);
+  const firstPlayed = weekStart(dates[0]);
+  let from = firstPlayed;
+  if (windowName !== "Full season") {
+    let short = current;
+    for (let i = 1; i < SHORT_WINDOW_WEEKS; i++) short = addDays(short, -7);
+    if (short > firstPlayed) from = short;
+  }
+
+  const weeks = [];
+  for (let w = from; w <= current; w = nextWeek(w)) weeks.push(w);
+  return weeks;
+}
+
+// One series per selected squad over the shared axis.
+//
+// `mode` is "cumulative" (running SEASON total, so points earned before the window
+// opened are carried in - otherwise the two windows would disagree about the same squad)
+// or "weekly" (points earned in that week alone, and a blank week is a genuine zero
+// rather than missing data).
+export function weekSeries(results, fixtures, config, { mode, windowName, teamIds, today }) {
+  const weeks = weekAxis(results, windowName, today);
+  if (weeks.length === 0) return [];
+
+  const selected = teamIds ?? [];
+  const labels = labelsFor(fixtures, config, selected);
+  const meta = metaByTeam(fixtures, results);
+
+  const first = weeks[0];
+  const inWeek = new Map();   // `${teamId}|${week}` -> points
+  const earlier = new Map();  // teamId -> points banked before the axis opens
+  for (const r of results ?? []) {
+    const points = pointsFor(r);
+    const week = weekStart(r.date);
+    if (week < first) {
+      earlier.set(r.teamId, (earlier.get(r.teamId) ?? 0) + points);
+      continue;
+    }
+    const key = `${r.teamId}|${week}`;
+    inWeek.set(key, (inWeek.get(key) ?? 0) + points);
+  }
+
+  return selected.map((teamId) => {
+    let running = mode === "cumulative" ? earlier.get(teamId) ?? 0 : 0;
+    const values = weeks.map((week) => {
+      const points = inWeek.get(`${teamId}|${week}`) ?? 0;
+      if (mode !== "cumulative") return points;
+      running += points;
+      return running;
+    });
+    return {
+      teamId,
+      label: labels[teamId] ?? meta[teamId]?.ourTeam ?? String(teamId),
+      // strokeOn, not the raw squad colour: three live squads' colours are invisible as
+      // a line on the card. Both this and the dash are functions of the SQUAD, so
+      // changing the selection never restyles the survivors.
+      color: strokeOn(squadColor(teamId, config).bg),
+      dash: squadDash(teamId),
+      values,
+    };
+  });
 }

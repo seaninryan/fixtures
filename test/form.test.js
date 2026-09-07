@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { squadRecords, defaultSelection } from "../src/lib/form.js";
+import {
+  squadRecords, defaultSelection, weekAxis, weekSeries, FORM_WINDOWS,
+} from "../src/lib/form.js";
 
 const config = {
   version: 1,
@@ -152,5 +154,144 @@ describe("defaultSelection", () => {
       { teamId: "88", label: "U12A Boys", played: 2 },
     ];
     expect(defaultSelection(tied)).toEqual(["88", "99"]);
+  });
+});
+
+// 2026-08-31, 09-07, 09-14, 09-21, 09-28 and 10-05 are consecutive Mondays.
+describe("weekAxis", () => {
+  const on = (date) => result({ fid: date, date });
+
+  it("offers exactly the two windows", () => {
+    expect(FORM_WINDOWS).toEqual(["Last 5 weeks", "Full season"]);
+  });
+
+  it("runs from the first result's week to the current week for the full season", () => {
+    const axis = weekAxis([on("2026-08-31"), on("2026-09-16")], "Full season", "2026-09-21");
+    expect(axis).toEqual(["2026-08-31", "2026-09-07", "2026-09-14", "2026-09-21"]);
+  });
+
+  it("takes the current week and the four before it for the short window", () => {
+    const axis = weekAxis([on("2026-08-03")], "Last 5 weeks", "2026-09-28");
+    expect(axis).toEqual(["2026-08-31", "2026-09-07", "2026-09-14", "2026-09-21", "2026-09-28"]);
+  });
+
+  // Never pad to fill five: an axis of empty weeks implies a season that has not
+  // happened yet.
+  it("shows only the weeks that exist when there are fewer than five", () => {
+    const axis = weekAxis([on("2026-09-14")], "Last 5 weeks", "2026-09-21");
+    expect(axis).toEqual(["2026-09-14", "2026-09-21"]);
+  });
+
+  it("is empty when nothing has been played", () => {
+    expect(weekAxis([], "Full season", "2026-09-21")).toEqual([]);
+  });
+});
+
+describe("weekSeries", () => {
+  const opts = (over = {}) => ({
+    mode: "cumulative", windowName: "Full season", teamIds: ["11"], today: "2026-09-21", ...over,
+  });
+  const win = (date, fid) => result({ fid, date, ourScore: 2, theirScore: 0 });
+  const loss = (date, fid) => result({ fid, date, ourScore: 0, theirScore: 2 });
+
+  it("returns one series per selected squad, and only those", () => {
+    const series = weekSeries(
+      [win("2026-09-07", "a"), win("2026-09-07", "b")],
+      [fixture(), fixture({ fid: "f2", teamId: "22" })], config,
+      opts({ teamIds: ["11", "22"] }),
+    );
+    expect(series.map((s) => s.teamId)).toEqual(["11", "22"]);
+  });
+
+  it("accumulates points across weeks in cumulative mode", () => {
+    const series = weekSeries(
+      [win("2026-08-31", "a"), win("2026-09-14", "b")],
+      [fixture()], config, opts(),
+    );
+    expect(series[0].values).toEqual([3, 3, 6, 6]);
+  });
+
+  it("reports the points earned that week in weekly mode", () => {
+    const series = weekSeries(
+      [win("2026-08-31", "a"), win("2026-09-14", "b")],
+      [fixture()], config, opts({ mode: "weekly" }),
+    );
+    expect(series[0].values).toEqual([3, 0, 3, 0]);
+  });
+
+  // A squad playing twice in one week can take more than 3. Both games fall in the week
+  // commencing 2026-09-07, and the axis runs to the week of `today`.
+  it("adds up two games in the same week", () => {
+    const series = weekSeries(
+      [win("2026-09-07", "a"), win("2026-09-09", "b")],
+      [fixture()], config, opts({ mode: "weekly" }),
+    );
+    expect(series[0].values).toEqual([6, 0, 0]);
+  });
+
+  it("holds flat on a blank week in cumulative mode and shows zero in weekly", () => {
+    const results = [win("2026-08-31", "a"), loss("2026-09-14", "b")];
+    expect(weekSeries(results, [fixture()], config, opts())[0].values)
+      .toEqual([3, 3, 3, 3]);
+    expect(weekSeries(results, [fixture()], config, opts({ mode: "weekly" }))[0].values)
+      .toEqual([3, 0, 0, 0]);
+  });
+
+  // Cumulative means SEASON total. Restarting at zero because the window opened later
+  // would understate every squad and make the two windows disagree.
+  it("carries points earned before the window into cumulative mode", () => {
+    const series = weekSeries(
+      [win("2026-08-03", "a"), win("2026-09-21", "b")],
+      [fixture()], config, opts({ windowName: "Last 5 weeks" }),
+    );
+    expect(series[0].values.at(0)).toBe(3);
+    expect(series[0].values.at(-1)).toBe(6);
+  });
+
+  it("does not carry earlier points into weekly mode", () => {
+    const series = weekSeries(
+      [win("2026-08-03", "a"), win("2026-09-21", "b")],
+      [fixture()], config, opts({ mode: "weekly", windowName: "Last 5 weeks" }),
+    );
+    expect(series[0].values.at(0)).toBe(0);
+    expect(series[0].values.at(-1)).toBe(3);
+  });
+
+  it("gives a selected squad with no results a flat zero line", () => {
+    const series = weekSeries([win("2026-09-07", "a")], [fixture(), fixture({ fid: "f2", teamId: "22" })],
+      config, opts({ teamIds: ["22"] }));
+    expect(series[0].values.every((v) => v === 0)).toBe(true);
+  });
+
+  it("carries a visible stroke colour and a dash pattern", () => {
+    const dark = { version: 1, teams: { "11": { label: "U14A Boys", color: "#080080" } } };
+    const [s] = weekSeries([win("2026-09-07", "a")], [fixture()], dark, opts());
+    expect(s.color).not.toBe("#080080"); // lifted to be visible on the card
+    expect(typeof s.dash).toBe("string");
+  });
+
+  // Colour follows the squad, not its position in the selection: dropping one squad must
+  // not repaint the others.
+  it("gives a squad the same colour and dash whatever else is selected", () => {
+    const results = [win("2026-09-07", "a"), win("2026-09-07", "b")];
+    const fixtures = [fixture(), fixture({ fid: "f2", teamId: "22" })];
+    const alone = weekSeries(results, fixtures, config, opts({ teamIds: ["22"] }))[0];
+    const together = weekSeries(results, fixtures, config, opts({ teamIds: ["11", "22"] }))
+      .find((s) => s.teamId === "22");
+    expect(together.color).toBe(alone.color);
+    expect(together.dash).toBe(alone.dash);
+  });
+
+  it("keeps the A/B letter even when one squad is selected", () => {
+    const bare = { version: 1, teams: {} };
+    const aSide = fixture({ fid: "f1", teamId: "A1", ourTeam: "Craughwell United" });
+    const bSide = fixture({ fid: "f2", teamId: "B1", ourTeam: "Craughwell United B" });
+    const [s] = weekSeries([result({ teamId: "A1", date: "2026-09-07" })], [aSide, bSide], bare,
+      opts({ teamIds: ["A1"] }));
+    expect(s.label).toBe("U14A Boys");
+  });
+
+  it("is empty when nothing has been played", () => {
+    expect(weekSeries([], [fixture()], config, opts())).toEqual([]);
   });
 });
