@@ -139,6 +139,11 @@ The competition comes from the current fixture list where the squad is still in
 it, and otherwise from that squad's most recent stored result — a retired squad
 has no fixture left to read it from, and its last division is the honest answer.
 
+> **SUPERSEDED** by `docs/superpowers/specs/2026-09-07-form-table-sorting-design.md`:
+> the table is now sortable by any column and opens on points per game,
+> descending. The reasoning below was right for the brief it had and is left
+> intact; that spec records why it changed.
+
 **Ordered alphabetically by label**, with `teamId` as a tiebreak to make the
 order total. Not by points or PPG: a PPG-sorted list is a standings table, and
 the owner was explicit that this is not one. Alphabetical also puts a club's
