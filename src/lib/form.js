@@ -251,3 +251,70 @@ export function seriesGeometry(series, weeks, width, height) {
 
   return { yMax, xTicks, yTicks, lines };
 }
+
+// One entry per rendered column, in render order. This is the single source of both the
+// table header and the sort, so a column can never be rendered without being sortable
+// or sortable without being rendered. `numeric` drives the comparison and which
+// direction a first click sorts.
+export const SORT_COLUMNS = [
+  { key: "label", label: "Squad", numeric: false },
+  { key: "played", label: "P", numeric: true },
+  { key: "won", label: "W", numeric: true },
+  { key: "drawn", label: "D", numeric: true },
+  { key: "lost", label: "L", numeric: true },
+  { key: "goalsFor", label: "GF", numeric: true },
+  { key: "goalsAgainst", label: "GA", numeric: true },
+  { key: "goalDifference", label: "GD", numeric: true },
+  { key: "points", label: "Pts", numeric: true },
+  { key: "pointsPerGame", label: "PPG", numeric: true },
+];
+
+export const DEFAULT_SORT = { key: "pointsPerGame", direction: "desc" };
+
+// The columns whose value is meaningless for a squad that has not played - exactly the
+// ones the table renders as an em dash. P is deliberately absent: 0 games is a real,
+// displayed value, so sorting by P puts the unplayed squads where you would expect.
+const MEANINGLESS_WHEN_UNPLAYED = new Set(
+  SORT_COLUMNS.map((c) => c.key).filter((key) => key !== "label" && key !== "played"),
+);
+
+// A squad that has not played cannot be ranked by a column it shows a dash for, so it
+// sinks to the bottom - in BOTH directions, which is why this is applied before the
+// direction is. Sorting it as zero would file "has not played" among "lost everything",
+// the exact confusion the dashes and the null pointsPerGame exist to prevent.
+function sinks(record, key) {
+  return record.played === 0 && MEANINGLESS_WHEN_UNPLAYED.has(key);
+}
+
+// Sorts a COPY. squadRecords' output is rendered in the same pass, and Array.sort works
+// in place - so sorting the original would reorder the caller's list under it.
+//
+// squadRecords itself is untouched and stays alphabetical: that is the stable base, and
+// this is a display pass over it.
+export function sortRecords(records, key, direction) {
+  const column = SORT_COLUMNS.find((c) => c.key === key);
+  const { key: sortKey, direction: sortDirection } = column
+    ? { key, direction }
+    : DEFAULT_SORT;
+  const numeric = (SORT_COLUMNS.find((c) => c.key === sortKey) ?? {}).numeric;
+  const sign = sortDirection === "asc" ? 1 : -1;
+
+  return [...(records ?? [])].sort((a, b) => {
+    const aSinks = sinks(a, sortKey);
+    const bSinks = sinks(b, sortKey);
+    // Before the direction is applied, so a sunk row stays at the bottom either way.
+    if (aSinks !== bSinks) return aSinks ? 1 : -1;
+
+    if (!aSinks) {
+      const ordered = numeric
+        ? (a[sortKey] ?? 0) - (b[sortKey] ?? 0)
+        : String(a[sortKey]).localeCompare(String(b[sortKey]));
+      if (ordered !== 0) return sign * ordered;
+    }
+
+    // Always, so the order is TOTAL. Fourteen squads tie on 0 for several columns, and
+    // without this the order differs between renders and rows look like they shuffle on
+    // their own. Never reversed by `sign`: the tiebreak is stability, not data.
+    return a.label.localeCompare(b.label) || String(a.teamId).localeCompare(String(b.teamId));
+  });
+}
