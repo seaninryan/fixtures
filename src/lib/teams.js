@@ -129,6 +129,26 @@ export function resolveTeams(fixtures, config) {
   return { labels, unknown, duplicates };
 }
 
+// Fill label gaps from config for squads resolveTeams could not reach.
+//
+// resolveTeams only builds entries for squads in the fixture list it is given, because
+// that is the list deriveLabels counts. A squad whose season has ended has left that
+// list, but its results live in the store forever - so without this it falls through to
+// the raw feed name ("Craughwell United U16") even though teams.json names it.
+// Derivation genuinely cannot help a retired squad; config still can, and config beating
+// derivation is a hard rule here.
+//
+// Only fills GAPS. A squad still in the fixture list keeps whatever resolveTeams
+// decided, collision handling included. Mutates and returns `labels`.
+export function fillLabelGaps(labels, config, teamIds) {
+  for (const teamId of teamIds ?? []) {
+    if (labels[teamId]) continue;
+    const set = cleanLabel(config?.teams?.[teamId]?.label);
+    if (set) labels[teamId] = set;
+  }
+  return labels;
+}
+
 // A Map, not an object: a squad could legitimately be labelled "constructor".
 function tally(map) {
   const n = new Map();

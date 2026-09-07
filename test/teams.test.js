@@ -4,6 +4,7 @@ import { parse } from "../src/lib/parse.js";
 import { normalizeAll } from "../src/lib/normalize.js";
 import {
   deriveLabels, resolveTeams, teamsFromFixtures, seedConfig, CONFIG_VERSION,
+  fillLabelGaps,
 } from "../src/lib/teams.js";
 import { PALETTE } from "../src/lib/squadColors.js";
 import { TEAM_COUNT } from "./fixtures/meta.js";
@@ -436,5 +437,35 @@ describe("seedConfig", () => {
     const before = JSON.stringify(existing);
     seedConfig(fixtures, existing);
     expect(JSON.stringify(existing)).toBe(before);
+  });
+});
+
+describe("fillLabelGaps", () => {
+  const config = { version: 1, teams: { "99": { label: "U16 Boys" }, "98": { label: "  " } } };
+
+  it("names a squad that resolveTeams could not reach", () => {
+    const labels = {};
+    fillLabelGaps(labels, config, ["99"]);
+    expect(labels["99"]).toBe("U16 Boys");
+  });
+
+  // Config beats derivation, but a squad still in the fixture list has already been
+  // resolved WITH its collision handling - overwriting that would undo it.
+  it("leaves an already-resolved label alone", () => {
+    const labels = { "99": "U16A Boys" };
+    fillLabelGaps(labels, config, ["99"]);
+    expect(labels["99"]).toBe("U16A Boys");
+  });
+
+  it("leaves a gap as a gap when config has nothing usable", () => {
+    const labels = {};
+    fillLabelGaps(labels, config, ["98", "97"]);
+    expect(labels["98"]).toBeUndefined();
+    expect(labels["97"]).toBeUndefined();
+  });
+
+  it("returns the same object it was given", () => {
+    const labels = {};
+    expect(fillLabelGaps(labels, config, ["99"])).toBe(labels);
   });
 });

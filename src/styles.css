@@ -52,3 +52,28 @@ body { margin: 0; background: var(--bg); color: var(--fg);
 .card.pending .dim { margin: 10px 0 0; font-family: ui-sans-serif, system-ui, sans-serif; }
 .phead { margin: 0 0 8px; font-weight: 600; }
 .aline.pending { padding-left: 30px; }
+/* The form table. Numbers are tabular so columns line up without a monospace font for
+   the squad names, which are prose. */
+.form-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.form-table th, .form-table td { padding: 6px 4px; text-align: right;
+  font-variant-numeric: tabular-nums; border-top: 1px solid var(--line); }
+.form-table thead th { border-top: 0; color: var(--dim); font-weight: 600; font-size: 12px; }
+.form-table th.squad, .form-table td.squad { text-align: left; padding-left: 20px;
+  position: relative; }
+/* The row swatch sits in the gutter, like the announcement's - never in the text. */
+.swatch.inline { top: .55em; }
+.form-table td.squad .dim { font-size: 12px; }
+/* Grid and axes are recessive - the data is the foreground. */
+.chart { width: 100%; height: auto; display: block; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+/* Ticks and labels wear text tokens, never the series colour. */
+.chart .tick { fill: var(--dim); font-size: 11px;
+  font-family: ui-sans-serif, system-ui, sans-serif; }
+/* The one exception: a direct label IS the legend entry for its line, so it carries the
+   line's colour - and every such colour has been lifted to at least 3:1 by strokeOn. */
+.chart .series-label { font-size: 11px; font-weight: 600;
+  font-family: ui-sans-serif, system-ui, sans-serif; }
+.legend-row { display: flex; align-items: center; gap: 8px; padding: 4px 0 4px 20px;
+  position: relative; font-size: 14px; cursor: pointer; }
+.legend-row .dim { margin-left: auto; }
+.legend-row .swatch.inline { top: 50%; transform: translateY(-50%); }

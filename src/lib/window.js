@@ -8,13 +8,24 @@ export const WINDOWS = ["This weekend", "Next 7 days", "Next 14 days", "All"];
 const asDate = (iso) => new Date(`${iso}T00:00:00Z`);
 const asIso = (d) => d.toISOString().slice(0, 10);
 
-function addDays(iso, n) {
+// Exported: form.js steps a week at a time across the chart's axis. Keeping ISO date
+// arithmetic in this one module is why weekStart lives here too.
+export function addDays(iso, n) {
   const d = asDate(iso);
   d.setUTCDate(d.getUTCDate() + n);
   return asIso(d);
 }
 
 const dayOfWeek = (iso) => asDate(iso).getUTCDay(); // 0 Sun .. 6 Sat
+
+// The Monday of that date's week. Monday-start because that is how a football week
+// reads: a weekend's games belong to the week that just finished, not the one starting.
+//
+// dayOfWeek is 0 Sun .. 6 Sat, so (dow + 6) % 7 is "days since Monday" - 0 for Monday
+// and 6 for Sunday, which is exactly the shift needed.
+export function weekStart(iso) {
+  return addDays(iso, -((dayOfWeek(iso) + 6) % 7));
+}
 
 export function windowRange(name, today) {
   if (name === "This weekend") {

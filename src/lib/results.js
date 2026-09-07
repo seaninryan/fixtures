@@ -1,7 +1,7 @@
 // Pure. The accumulated results store, and the round-up text built from it.
 import { sortResults } from "./normalize.js";
 import { resultWindowPredicate } from "./window.js";
-import { resolveTeams, cleanLabel } from "./teams.js";
+import { resolveTeams, fillLabelGaps } from "./teams.js";
 import { squadColor } from "./squadColors.js";
 
 export const RESULTS_VERSION = 1;
@@ -93,18 +93,9 @@ export function roundupLines(results, config, windowName, today, fixtures = []) 
   // That is this codebase's standing trade - never silently wrong.
   const { labels } = resolveTeams(fixtures, config);
 
-  // resolveTeams only produces entries for squads in the CURRENT fixture list, because
-  // that is the list deriveLabels counts. A squad whose season has ended has left that
-  // list, but its results remain forever - so without this it would fall through to the
-  // raw feed name ("Craughwell United U16") even though teams.json explicitly names it.
-  // Derivation genuinely cannot help a retired squad; config still can, and config
-  // beating derivation is a hard rule of this codebase. Only fills GAPS: a squad still
-  // in the fixture list keeps whatever resolveTeams decided, collision handling included.
-  for (const r of chosen) {
-    if (labels[r.teamId]) continue;
-    const set = cleanLabel(config?.teams?.[r.teamId]?.label);
-    if (set) labels[r.teamId] = set;
-  }
+  // A squad whose season has ended has left the fixture list, so resolveTeams cannot
+  // reach it, but its results remain forever. Config still can - see fillLabelGaps.
+  fillLabelGaps(labels, config, chosen.map((r) => r.teamId));
 
   const lines = [];
   let currentDay = null;
