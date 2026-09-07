@@ -7,6 +7,8 @@ import {
   RESULT_WINDOWS,
   resultWindowRange,
   resultWindowPredicate,
+  weekStart,
+  addDays,
 } from "../src/lib/window.js";
 import { parse } from "../src/lib/parse.js";
 import { normalizeAll } from "../src/lib/normalize.js";
@@ -314,5 +316,41 @@ describe("result windows", () => {
     expect(WINDOWS).toEqual(["This weekend", "Next 7 days", "Next 14 days", "All"]);
     expect(windowRange("Next 7 days", "2026-08-30"))
       .toEqual({ from: "2026-08-30", to: "2026-09-05" });
+  });
+});
+
+// 2026-09-07 is a Monday, 09-13 the Sunday that ends its week.
+describe("weekStart", () => {
+  it("returns the same day for a Monday", () => {
+    expect(weekStart("2026-09-07")).toBe("2026-09-07");
+  });
+
+  it("returns the Monday just gone for a Sunday", () => {
+    expect(weekStart("2026-09-13")).toBe("2026-09-07");
+  });
+
+  it("returns the Monday just gone for a mid-week day", () => {
+    expect(weekStart("2026-09-10")).toBe("2026-09-07"); // Thursday
+    expect(weekStart("2026-09-12")).toBe("2026-09-07"); // Saturday
+  });
+
+  it("crosses a month boundary", () => {
+    expect(weekStart("2026-09-02")).toBe("2026-08-31"); // Wed -> Mon in August
+  });
+
+  it("crosses a year boundary", () => {
+    expect(weekStart("2027-01-01")).toBe("2026-12-28"); // Fri -> Mon in December
+  });
+
+  it("is idempotent", () => {
+    expect(weekStart(weekStart("2026-09-13"))).toBe(weekStart("2026-09-13"));
+  });
+});
+
+describe("addDays", () => {
+  it("moves forward and backward across a month boundary", () => {
+    expect(addDays("2026-08-31", 7)).toBe("2026-09-07");
+    expect(addDays("2026-09-07", -7)).toBe("2026-08-31");
+    expect(addDays("2026-09-07", 0)).toBe("2026-09-07");
   });
 });
