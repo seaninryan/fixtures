@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   squadRecords, defaultSelection, weekAxis, weekSeries, FORM_WINDOWS,
   seriesGeometry, CHART_PADDING,
+  SORT_COLUMNS, DEFAULT_SORT, sortRecords,
 } from "../src/lib/form.js";
 
 const config = {
@@ -383,5 +384,156 @@ describe("seriesGeometry", () => {
 
   it("never produces NaN in a path", () => {
     for (const { d } of geo().lines) expect(d).not.toMatch(/NaN/);
+  });
+});
+
+describe("sorting", () => {
+  // Built by hand rather than via squadRecords, so a change in squadRecords cannot
+  // quietly alter what these assert about sortRecords.
+  const row = (over) => ({
+    teamId: "0", label: "Z", competition: "", played: 1, won: 0, drawn: 0, lost: 1,
+    goalsFor: 0, goalsAgainst: 1, goalDifference: -1, points: 0, pointsPerGame: 0, ...over,
+  });
+  const unplayed = (over) => row({
+    played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0,
+    goalDifference: 0, points: 0, pointsPerGame: null, ...over,
+  });
+  const labels = (rows) => rows.map((r) => r.label);
+
+  it("offers a column for every field the table renders", () => {
+    expect(SORT_COLUMNS.map((c) => c.key)).toEqual([
+      "label", "played", "won", "drawn", "lost",
+      "goalsFor", "goalsAgainst", "goalDifference", "points", "pointsPerGame",
+    ]);
+  });
+
+  it("marks Squad as the only non-numeric column", () => {
+    expect(SORT_COLUMNS.filter((c) => !c.numeric).map((c) => c.key)).toEqual(["label"]);
+  });
+
+  // The decision this whole spec exists to record.
+  it("defaults to points per game, descending", () => {
+    expect(DEFAULT_SORT).toEqual({ key: "pointsPerGame", direction: "desc" });
+  });
+
+  it("sorts a numeric column descending and ascending", () => {
+    const rows = [
+      row({ teamId: "1", label: "A", points: 1 }),
+      row({ teamId: "2", label: "B", points: 7 }),
+      row({ teamId: "3", label: "C", points: 4 }),
+    ];
+    expect(labels(sortRecords(rows, "points", "desc"))).toEqual(["B", "C", "A"]);
+    expect(labels(sortRecords(rows, "points", "asc"))).toEqual(["A", "C", "B"]);
+  });
+
+  it("sorts the squad column alphabetically both ways", () => {
+    const rows = [
+      row({ teamId: "1", label: "U16 Boys" }),
+      row({ teamId: "2", label: "U12A Boys" }),
+      row({ teamId: "3", label: "U14 Girls" }),
+    ];
+    expect(labels(sortRecords(rows, "label", "asc")))
+      .toEqual(["U12A Boys", "U14 Girls", "U16 Boys"]);
+    expect(labels(sortRecords(rows, "label", "desc")))
+      .toEqual(["U16 Boys", "U14 Girls", "U12A Boys"]);
+  });
+
+  it("sorts every numeric column", () => {
+    for (const { key } of SORT_COLUMNS.filter((c) => c.numeric)) {
+      const rows = [
+        row({ teamId: "1", label: "low", [key]: 1 }),
+        row({ teamId: "2", label: "high", [key]: 9 }),
+      ];
+      expect(labels(sortRecords(rows, key, "desc"))).toEqual(["high", "low"]);
+    }
+  });
+
+  // Fourteen squads tie on 0 for several columns. Without a fallback the order differs
+  // between renders, and rows appear to shuffle on their own.
+  it("breaks ties by label, then teamId, so the order is total", () => {
+    const rows = [
+      row({ teamId: "9", label: "Same", points: 3 }),
+      row({ teamId: "2", label: "Same", points: 3 }),
+      row({ teamId: "5", label: "Other", points: 3 }),
+    ];
+    const sorted = sortRecords(rows, "points", "desc");
+    expect(sorted.map((r) => `${r.label}/${r.teamId}`)).toEqual(["Other/5", "Same/2", "Same/9"]);
+  });
+
+  it("gives the same answer whatever order it is handed", () => {
+    const a = row({ teamId: "1", label: "A", points: 3 });
+    const b = row({ teamId: "2", label: "B", points: 3 });
+    const c = row({ teamId: "3", label: "C", points: 9 });
+    expect(labels(sortRecords([a, b, c], "points", "desc")))
+      .toEqual(labels(sortRecords([c, b, a], "points", "desc")));
+  });
+
+  // THE RULE. A squad that has not played renders em dashes because its W/D/L/goals/
+  // points are not meaningful - so it cannot be ranked by them either. Sorting it as
+  // zero would file "has not played" among "lost everything".
+  it("sinks an unplayed squad on PPG in both directions", () => {
+    const rows = [
+      unplayed({ teamId: "1", label: "NotPlayed" }),
+      row({ teamId: "2", label: "Lost", pointsPerGame: 0 }),
+      row({ teamId: "3", label: "Won", pointsPerGame: 3 }),
+    ];
+    expect(labels(sortRecords(rows, "pointsPerGame", "desc")))
+      .toEqual(["Won", "Lost", "NotPlayed"]);
+    expect(labels(sortRecords(rows, "pointsPerGame", "asc")))
+      .toEqual(["Lost", "Won", "NotPlayed"]);
+  });
+
+  it("sinks an unplayed squad on points and goal difference too", () => {
+    for (const key of ["points", "goalDifference", "won", "goalsFor"]) {
+      const rows = [
+        unplayed({ teamId: "1", label: "NotPlayed" }),
+        row({ teamId: "2", label: "Played", [key]: -5 }),
+      ];
+      expect(labels(sortRecords(rows, key, "asc"))).toEqual(["Played", "NotPlayed"]);
+      expect(labels(sortRecords(rows, key, "desc"))).toEqual(["Played", "NotPlayed"]);
+    }
+  });
+
+  // P is the one exception: 0 is a real, displayed value there, so anyone clicking P
+  // ascending expects the unplayed squads first.
+  it("sorts an unplayed squad by its real zero on P", () => {
+    const rows = [
+      row({ teamId: "1", label: "Played", played: 2 }),
+      unplayed({ teamId: "2", label: "NotPlayed" }),
+    ];
+    expect(labels(sortRecords(rows, "played", "asc"))).toEqual(["NotPlayed", "Played"]);
+    expect(labels(sortRecords(rows, "played", "desc"))).toEqual(["Played", "NotPlayed"]);
+  });
+
+  it("keeps unplayed squads in a total order among themselves", () => {
+    const rows = [
+      unplayed({ teamId: "9", label: "B" }),
+      unplayed({ teamId: "1", label: "A" }),
+    ];
+    expect(labels(sortRecords(rows, "pointsPerGame", "desc"))).toEqual(["A", "B"]);
+  });
+
+  it("falls back to the default sort for an unrecognised key", () => {
+    const rows = [
+      row({ teamId: "1", label: "A", pointsPerGame: 1 }),
+      row({ teamId: "2", label: "B", pointsPerGame: 3 }),
+    ];
+    expect(labels(sortRecords(rows, "nonsense", "asc"))).toEqual(["B", "A"]);
+    expect(labels(sortRecords(rows, undefined, undefined))).toEqual(["B", "A"]);
+  });
+
+  it("does not mutate the array it was given", () => {
+    const rows = [
+      row({ teamId: "1", label: "A", points: 1 }),
+      row({ teamId: "2", label: "B", points: 9 }),
+    ];
+    const before = labels(rows);
+    sortRecords(rows, "points", "desc");
+    expect(labels(rows)).toEqual(before);
+  });
+
+  it("survives an empty or missing list", () => {
+    expect(sortRecords([], "points", "desc")).toEqual([]);
+    expect(sortRecords(null, "points", "desc")).toEqual([]);
   });
 });

@@ -275,6 +275,38 @@ describe("FormTab", () => {
     expect(html).not.toContain('class="series"');
     expect(html).toMatch(/No results yet/i);
   });
+
+  it("renders a sort button for every column", () => {
+    const html = render();
+    const header = html.slice(html.indexOf("<thead"), html.indexOf("</thead>"));
+    expect(header.match(/<button/g)).toHaveLength(10);
+    expect(header).toContain("Squad");
+    expect(header).toContain("PPG");
+  });
+
+  // The default this feature exists for: best points-per-game first.
+  it("opens sorted by points per game, descending", () => {
+    const html = render();
+    const body = html.slice(html.indexOf("<tbody"));
+    // U14A Boys 3.00 beats U13 Boys 0.00; U14B Boys has not played and sinks last.
+    expect(body.indexOf("U14A Boys")).toBeLessThan(body.indexOf("U13 Boys"));
+    expect(body.indexOf("U14B Boys")).toBeGreaterThan(body.indexOf("U13 Boys"));
+  });
+
+  // Identity of the sorted column must not be conveyed by an arrow glyph alone.
+  it("marks the sorted column with aria-sort and leaves the others none", () => {
+    const html = render();
+    const header = html.slice(html.indexOf("<thead"), html.indexOf("</thead>"));
+    expect(header.match(/aria-sort="descending"/g)).toHaveLength(1);
+    expect(header.match(/aria-sort="none"/g)).toHaveLength(9);
+  });
+
+  // Now that the tab opens on a ranking, the caveat has to be readable before the
+  // numbers rather than after them.
+  it("puts the divisions caveat above the table", () => {
+    const html = render();
+    expect(html.indexOf("different divisions")).toBeLessThan(html.indexOf("form-table"));
+  });
 });
 
 describe("ChangesTab", () => {
