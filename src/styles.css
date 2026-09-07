@@ -52,3 +52,14 @@ body { margin: 0; background: var(--bg); color: var(--fg);
 .card.pending .dim { margin: 10px 0 0; font-family: ui-sans-serif, system-ui, sans-serif; }
 .phead { margin: 0 0 8px; font-weight: 600; }
 .aline.pending { padding-left: 30px; }
+/* The form table. Numbers are tabular so columns line up without a monospace font for
+   the squad names, which are prose. */
+.form-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.form-table th, .form-table td { padding: 6px 4px; text-align: right;
+  font-variant-numeric: tabular-nums; border-top: 1px solid var(--line); }
+.form-table thead th { border-top: 0; color: var(--dim); font-weight: 600; font-size: 12px; }
+.form-table th.squad, .form-table td.squad { text-align: left; padding-left: 20px;
+  position: relative; }
+/* The row swatch sits in the gutter, like the announcement's - never in the text. */
+.swatch.inline { top: .55em; }
+.form-table td.squad .dim { font-size: 12px; }

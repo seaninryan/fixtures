@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AnnouncementTab from "./components/AnnouncementTab.jsx";
 import ResultsTab from "./components/ResultsTab.jsx";
+import FormTab from "./components/FormTab.jsx";
 import ChangesTab from "./components/ChangesTab.jsx";
 import SquadsTab from "./components/SquadsTab.jsx";
 import { dataUrl, DEFAULT_DATA_URL, DATA_REPO } from "./lib/dataSource.js";
@@ -10,7 +11,7 @@ import {
 import { isOwner } from "./lib/owner.js";
 import { clubNow } from "./lib/clock.js";
 
-const TABS = ["Fixtures", "Results", "Changes", "Squads"];
+const TABS = ["Fixtures", "Results", "Form", "Changes", "Squads"];
 
 // Set VITE_DATA_URL in a .env file to read a local copy instead of the data repo.
 const BASE = import.meta.env.VITE_DATA_URL || DEFAULT_DATA_URL;
@@ -143,6 +144,9 @@ export default function App() {
       {tab === "Results" && (
         <ResultsTab results={results} fixtures={fixtures} config={config}
                     today={today} now={now} />
+      )}
+      {tab === "Form" && (
+        <FormTab results={results} fixtures={fixtures} config={config} today={today} />
       )}
       {tab === "Changes" && <ChangesTab history={history} fixtures={fixtures} config={config} />}
       {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} onChange={setConfig} />}

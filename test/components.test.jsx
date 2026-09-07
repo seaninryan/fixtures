@@ -4,6 +4,7 @@ import AnnouncementTab from "../src/components/AnnouncementTab.jsx";
 import ResultsTab from "../src/components/ResultsTab.jsx";
 import ChangesTab from "../src/components/ChangesTab.jsx";
 import SquadsTab from "../src/components/SquadsTab.jsx";
+import FormTab from "../src/components/FormTab.jsx";
 import { roundup } from "../src/lib/results.js";
 
 const config = { version: 1, teams: { "235380": { label: "U14A Boys", color: "#1f6feb" } } };
@@ -145,6 +146,86 @@ describe("ResultsTab", () => {
     );
     expect(html).not.toContain("No result yet");
     expect(html).toMatch(/could not/i);
+  });
+});
+
+const formFixtures = [
+  { fid: "f1", teamId: "11", date: "2026-09-12", time: "12:00", isHome: true,
+    ourTeam: "Craughwell United", opponent: "X", venue: "Craughwell",
+    competition: "GFA Boys U14 Championship 1", comment: "" },
+  { fid: "f2", teamId: "22", date: "2026-09-12", time: "14:00", isHome: true,
+    ourTeam: "Craughwell United B", opponent: "Y", venue: "Craughwell",
+    competition: "GFA Boys U14 Division 4", comment: "" },
+  { fid: "f3", teamId: "33", date: "2026-09-13", time: "11:00", isHome: true,
+    ourTeam: "Craughwell United", opponent: "Z", venue: "Craughwell",
+    competition: "GFA Boys U13 Championship 1", comment: "" },
+];
+
+const formResults = [
+  { fid: "r1", teamId: "11", date: "2026-09-05", isHome: true,
+    ourTeam: "Craughwell United", opponent: "X", ourScore: 2, theirScore: 1,
+    venue: "Craughwell", competition: "GFA Boys U14 Championship 1" },
+  { fid: "r2", teamId: "33", date: "2026-09-05", isHome: false,
+    ourTeam: "Craughwell United", opponent: "Z", ourScore: 0, theirScore: 4,
+    venue: "Away", competition: "GFA Boys U13 Championship 1" },
+];
+
+// Squad 33 carries #080080 AND has a result, so it lands in the default selection - which
+// is what makes the "no invisible stroke" test in Task 8 meaningful rather than vacuous.
+// Squad 22 is the never-played one, for the dashes test.
+const formConfig = { version: 1, teams: {
+  "11": { label: "U14A Boys", color: "#d9c53c" },
+  "22": { label: "U14B Boys", color: "#b95ad9" },
+  "33": { label: "U13 Boys", color: "#080080" },
+} };
+
+describe("FormTab", () => {
+  const render = (over = {}) => renderToStaticMarkup(
+    <FormTab results={{ version: 1, results: formResults }} fixtures={formFixtures}
+             config={formConfig} today="2026-09-07" {...over} />,
+  );
+
+  it("renders a squad's season record", () => {
+    const html = render();
+    expect(html).toContain("U14A Boys");
+    expect(html).toContain("3.00"); // one win, one game
+  });
+
+  // A squad that has not played must never render as 0.00, which reads as "lost every
+  // game". Asserted on that squad's ROW, not the whole page: U13 Boys played and lost
+  // 0-4, so a legitimate 0.00 exists elsewhere in the table.
+  it("renders dashes, not zeros, for a squad that has not played", () => {
+    const html = render();
+    const row = html.slice(html.indexOf("U14B Boys")).split("</tr>")[0];
+    expect(row).toContain("\u2014");
+    expect(row).not.toMatch(/\d\.\d\d/);
+  });
+
+  // The other half of the same rule: a squad that DID play and took nothing shows a real
+  // 0.00. Without this, "dashes everywhere" would pass the test above and be wrong.
+  it("renders a real 0.00 for a squad that played and took no points", () => {
+    const html = render();
+    const row = html.slice(html.indexOf("U13 Boys")).split("</tr>")[0];
+    expect(row).toContain("0.00");
+  });
+
+  it("says the store could not be loaded rather than claiming nobody played", () => {
+    const html = render({ results: null });
+    expect(html).toMatch(/could not/i);
+  });
+
+  it("distinguishes an empty store from a failed one", () => {
+    const html = render({ results: { version: 1, results: [] } });
+    expect(html).toMatch(/No results yet/i);
+    expect(html).not.toMatch(/could not/i);
+  });
+
+  // The invariant, at the component boundary.
+  it("keeps the A/B letter by resolving labels over every fixture", () => {
+    const bare = { version: 1, teams: {} };
+    const html = render({ config: bare });
+    expect(html).toContain("U14A Boys");
+    expect(html).toContain("U14B Boys");
   });
 });
 
