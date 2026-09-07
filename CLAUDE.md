@@ -54,6 +54,10 @@ lives in a unit-tested pure function; new derivations belong in lib with tests.
   read time from the snapshot and the results store; nothing is persisted, so
   the data repo's workflow is unaffected. `clock.js` — the club's local date and
   time as strings, and the only place a `Date` is unwrapped.
+- `form.js` — each squad's season record, and the Form tab's chart series and SVG
+  geometry. Pure, so the scales and path strings are unit-tested without a DOM.
+  `squadColors.js` gained `strokeOn` (a squad's colour made visible as a *line*,
+  which its chip colour often is not) and `squadDash`.
 - `announce.js` is imported by **both** the site and `check.mjs`, so what you copy
   out of the app and what the email quotes cannot drift.
 
@@ -76,7 +80,17 @@ offline runs.
 - **Config beats derivation.** A label in `teams.json` is never overwritten.
 - **Labels resolve over ALL fixtures, never a filtered subset.** The A/B letter
   only appears when the club runs more than one side at that age and gender, so a
-  filtered list silently renames squads. This bug has appeared three times.
+  filtered list silently renames squads. This bug has appeared three times. The
+  Form tab's squad selector makes filtered subsets a first-class feature, so it
+  is the easiest place to reintroduce it — `form.js` never passes a selection to
+  `resolveTeams`.
+- **The Form chart has no cap on selected squads, deliberately.** The dataviz
+  guidance caps a categorical palette at 8 series and the palette validator
+  fails past that; the owner chose no cap after seeing the finding. Identity is
+  therefore carried by four channels and not by hue alone — direct labels up to
+  six lines, a per-squad dash, a native `<title>` on every point, and the table.
+  Do not "fix" this by reassigning colours per selection: colour follows the
+  squad, never its position in a filter.
 - **Times are strings, never `Date` objects.** A UTC round-trip moves every
   kick-off by an hour for half the year.
 - **The site's `today` is the club's local date, never UTC.** Ireland is UTC+1
