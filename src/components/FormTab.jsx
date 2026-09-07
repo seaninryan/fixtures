@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   squadRecords, defaultSelection, weekAxis, weekSeries, seriesGeometry, FORM_WINDOWS,
+  SORT_COLUMNS, DEFAULT_SORT, sortRecords,
 } from "../lib/form.js";
 import { squadColor } from "../lib/squadColors.js";
 
@@ -42,6 +43,7 @@ export default function FormTab({ results, fixtures, config, today }) {
   const [picked, setPicked] = useState(null);
   const [windowName, setWindowName] = useState(FORM_WINDOWS[0]);
   const [mode, setMode] = useState("cumulative");
+  const [sort, setSort] = useState(DEFAULT_SORT);
 
   if (results === null) {
     return (
@@ -59,6 +61,17 @@ export default function FormTab({ results, fixtures, config, today }) {
 
   const stored = results?.results ?? [];
   const records = squadRecords(stored, fixtures, config);
+
+  // A display pass over squadRecords' stable alphabetical base - see sortRecords.
+  const sorted = sortRecords(records, sort.key, sort.direction);
+
+  // Clicking the active column flips it. A new column starts at the interesting end:
+  // descending for a number, A-Z for the squad name.
+  function sortBy(column) {
+    setSort(sort.key === column.key
+      ? { key: column.key, direction: sort.direction === "asc" ? "desc" : "asc" }
+      : { key: column.key, direction: column.numeric ? "desc" : "asc" });
+  }
 
   const selected = picked ?? defaultSelection(records);
   const weeks = weekAxis(stored, windowName, today);
@@ -159,17 +172,35 @@ export default function FormTab({ results, fixtures, config, today }) {
         </>
       )}
 
+      {/* Above the table, not below it: the tab now opens on a ranking, so the reader
+          needs this before the numbers rather than after them. */}
+      <p className="dim caveat">
+        Points are 3 for a win, 1 for a draw. Squads play in different divisions, so
+        these are each squad&apos;s own record — a squad top on points per game in a
+        lower division is not outplaying one below it in a championship.
+      </p>
       <div className="card">
         <table className="form-table">
           <thead>
             <tr>
-              <th className="squad">Squad</th>
-              <th>P</th><th>W</th><th>D</th><th>L</th>
-              <th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th>PPG</th>
+              {SORT_COLUMNS.map((column) => (
+                <th key={column.key} className={column.key === "label" ? "squad" : undefined}
+                    aria-sort={sort.key === column.key
+                      ? (sort.direction === "asc" ? "ascending" : "descending")
+                      : "none"}>
+                  <button className="sort" onClick={() => sortBy(column)}>
+                    {column.label}
+                    {/* The arrow is decorative - aria-sort above is what conveys state. */}
+                    <span aria-hidden="true">
+                      {sort.key === column.key ? (sort.direction === "asc" ? " \u25b2" : " \u25bc") : ""}
+                    </span>
+                  </button>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {records.map((r) => (
+            {sorted.map((r) => (
               <tr key={r.teamId}>
                 <td className="squad">
                   <span className="swatch inline" style={{ background: squadColor(r.teamId, config).bg }}
@@ -196,10 +227,6 @@ export default function FormTab({ results, fixtures, config, today }) {
           </tbody>
         </table>
       </div>
-      <p className="dim">
-        Points are 3 for a win, 1 for a draw. Squads play in different divisions, so
-        these are each squad&apos;s own record rather than a table to rank them by.
-      </p>
     </section>
   );
 }

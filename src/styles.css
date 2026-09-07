@@ -77,3 +77,15 @@ body { margin: 0; background: var(--bg); color: var(--fg);
   position: relative; font-size: 14px; cursor: pointer; }
 .legend-row .dim { margin-left: auto; }
 .legend-row .swatch.inline { top: 50%; transform: translateY(-50%); }
+/* The header cell is the button, so the whole cell is the hit target rather than just
+   the few characters of the label. */
+.form-table thead th { padding: 0; }
+.form-table .sort { width: 100%; background: transparent; border: 0; cursor: pointer;
+  color: var(--dim); font: inherit; font-weight: 600; font-size: 12px;
+  padding: 6px 4px; text-align: right; }
+.form-table th.squad .sort { text-align: left; padding-left: 20px; }
+.form-table .sort:hover { color: var(--fg); }
+/* The sorted column reads as active in the header as well as by its arrow. */
+.form-table th[aria-sort="ascending"] .sort,
+.form-table th[aria-sort="descending"] .sort { color: var(--fg); }
+.caveat { margin: 12px 0 0; }
