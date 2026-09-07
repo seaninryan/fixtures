@@ -42,3 +42,67 @@ export function squadColor(teamId, config) {
   const bg = set || PALETTE[hashIndex(teamId, PALETTE.length)];
   return { bg, fg: contrastFg(bg) };
 }
+
+// The chart's card surface. Must match --card in styles.css; there is no way for a pure
+// module to read a CSS variable, so this is the one duplicated value and it is named
+// loudly for that reason.
+export const CHART_SURFACE = "#182029";
+
+// 3:1, the WCAG floor for non-text graphics. A line below it is not a subtle line, it is
+// an absent one.
+const STROKE_CONTRAST = 3;
+const MIX_STEPS = 21;
+const HEX6 = /^#[0-9a-f]{6}$/i;
+
+// WCAG relative luminance. NOTE this is deliberately NOT the ITU-601 approximation used
+// by contrastFg above: that one is tuned for picking a foreground over a filled chip and
+// its green weighting makes teals read as light. For "can I see this line at all" the
+// linearised WCAG maths is the honest measure.
+function luminance(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const lin = (c) => (c /= 255, c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+}
+
+function contrast(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((p, q) => q - p);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+// Toward white in sRGB. This desaturates as it lightens, which is why the tests assert
+// the hue still dominates rather than assert an exact hex.
+function towardWhite(hex, t) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c) => Math.round(c + (255 - c) * t);
+  const out = [mix((n >> 16) & 255), mix((n >> 8) & 255), mix(n & 255)];
+  return `#${out.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+// A squad's colour, made visible as a LINE on the chart surface. Same hue, lightened
+// only as far as it takes to clear 3:1 - so a colour that already passes is returned
+// byte-identical, which is what makes this idempotent and what keeps the chart's colours
+// recognisably the squad's own.
+//
+// Chips are NOT affected. squadColor stays the identity everywhere else; this is the
+// stroke counterpart of contrastFg.
+export function strokeOn(hex, surface = CHART_SURFACE) {
+  if (!HEX6.test(hex ?? "")) return "#ffffff";
+  for (let step = 0; step < MIX_STEPS; step++) {
+    const candidate = towardWhite(hex, step / (MIX_STEPS - 1));
+    if (contrast(candidate, surface) >= STROKE_CONTRAST) return candidate;
+  }
+  return "#ffffff";
+}
+
+// Secondary encoding, because colour alone cannot separate many lines - and the owner
+// chose not to cap how many may be selected. Keyed off teamId via the same hash as the
+// colour fallback, so it follows the SQUAD and never its position in the selection:
+// deselecting one squad must not restyle the others.
+//
+// "" is solid. Cycling is acceptable here where it would not be for hue, because this is
+// a secondary channel and a collision costs a little clarity rather than an identity.
+export const SQUAD_DASHES = ["", "6 3", "1 3", "9 3 2 3", "4 2 1 2"];
+
+export function squadDash(teamId) {
+  return SQUAD_DASHES[hashIndex(teamId, SQUAD_DASHES.length)];
+}
