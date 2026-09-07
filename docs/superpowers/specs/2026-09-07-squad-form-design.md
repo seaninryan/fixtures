@@ -156,10 +156,27 @@ dependencies and a 158 KB bundle, and recharts or chart.js would be a large
 fraction of that again for one chart. Hand-rolling also keeps the geometry in a
 pure, unit-tested function rather than inside a component.
 
-One line per selected squad, drawn in **that squad's own configured colour**
-from `squadColors.js` — the owner has already assigned those, and they are the
-legend on every other screen, so a fresh categorical palette would actively
-mislead.
+One line per selected squad, in a **stroke colour derived from that squad's own
+configured colour** — same hue, lightened until it clears 3:1 against the card
+surface `#182029`. The squad's colour is the identity on every other screen, so
+a fresh categorical palette would actively mislead; but a chip and a line stroke
+are different jobs and the same hex cannot serve both.
+
+`squadColors.js` gains `strokeOn(hex, surface)`, the stroke counterpart of the
+existing `contrastFg`. It changes nothing about chips anywhere else.
+
+Measured 2026-09-07 against the live `teams.json`, three squads' colours are
+effectively invisible as a thin line on the card, all three hand-picked as
+badges rather than taken from `PALETTE`:
+
+| Squad | Colour | Contrast vs card |
+|---|---|---|
+| U13 Boys | `#080080` | 1.03:1 |
+| U12B Girls | `#5900b3` | 1.62:1 |
+| U15B Boys | `#2b00ff` | 1.99:1 |
+
+Deriving the stroke fixes all three without the owner having to re-pick
+anything, and without the trap returning the next time a dark colour is chosen.
 
 ### Controls
 
@@ -167,7 +184,34 @@ mislead.
 |---|---|---|
 | Window | `Last 5 weeks`, `Full season` | `Last 5 weeks` |
 | Mode | `Weekly points`, `Cumulative` | `Cumulative` |
-| Squads | one checkbox each, plus `All` / `None` | every squad that has played |
+| Squads | one checkbox each, plus `All` / `None` | the 3 squads with the most results |
+
+The default is the three squads with the most stored results, tie-broken by
+label so it is deterministic. Three lines is readable on arrival and shows the
+squads with the most to show; `All` is one click away.
+
+### Series count, and a documented deviation
+
+**There is no cap on how many squads may be selected.** The `dataviz` guidance
+is explicit that a categorical palette carries at most 8 series and that a 9th
+is never a generated hue — and the palette validator fails on this one
+(see below). The owner was shown that finding and chose no cap, so this is a
+deliberate, recorded deviation rather than an oversight.
+
+What the design does instead, to degrade rather than break:
+
+- A **legend is always present** — the squad checkbox list serves as it, each
+  row carrying the squad's stroke colour.
+- **Hover always works**: a crosshair and tooltip naming the squad, the week and
+  the value. Identity never depends on telling two colours apart.
+- **Direct labels while 6 or fewer squads are selected**, at each line's
+  right-hand end. Above 6 they would collide, so they are dropped and the
+  legend and hover carry identity.
+- **A dash pattern per series** as a secondary channel, assigned by the squad's
+  stable sort position. Cycling is acceptable here precisely because it is
+  secondary and it follows the entity, not its rank.
+- **A visible warning past 8 selected**: "N squads selected — colour alone
+  cannot separate this many lines. The table below is the reliable read."
 
 ### The axis
 
@@ -185,12 +229,33 @@ as missing data.
 Y starts at zero in both modes. `Weekly points` is bounded by the most points
 any selected squad took in one week (a squad playing twice can exceed 3).
 
-The `dataviz` skill is **required reading before any chart code is written**,
-for the axis, mark and legend specifics. One question it has to settle:
-`squadColors.js` records that 6 of its 24 palette colours sit between 3:1 and
-4.5:1 against their best foreground, which is acceptable for a bold chip and
-marginal for a thin stroke on `#0f1419`. Expect lines thicker than 1px, point
-markers, or both.
+### Marks
+
+2px strokes, markers of at least 8px at each plotted week, a 2px surface-coloured
+ring where marks overlap, and recessive grid and axis lines. Text wears text
+tokens (`--fg`, `--dim`), never the series colour; the coloured mark beside a
+label carries identity.
+
+### What the palette validator said
+
+Run 2026-09-07 via the `dataviz` validator against the live squad colours, dark
+mode, surface `#182029`. It **fails**, and the failures are recorded here so
+nobody re-litigates them from taste:
+
+- **Contrast**: `#080080` 1.03:1, `#5900b3` 1.62:1, `#2b00ff` 1.99:1 — fixed by
+  `strokeOn`.
+- **Normal-vision separation**: `#4ed0da` ↔ `#3fb98a` (U15 Girls / U18 Girls)
+  ΔE 11.8, below the floor of 15.
+- **CVD separation**: `#3fb950` ↔ `#e5484d` (U12A Boys / U21 Men) ΔE 5.7 for
+  deutan — the classic red-green collision.
+- **Chroma**: `#8c6f5a` (U13 Girls) reads gray.
+
+The separation failures are **not** fixable by deriving a stroke colour: two
+squads the owner has given similar colours will draw similar lines. They are
+mitigated by the secondary encoding above — direct labels, dash patterns, hover
+and the table — and the table is the authoritative read when two lines are hard
+to tell apart. Re-picking those squads' colours on the Squads tab would fix them
+at source, and is the owner's call, not this work's.
 
 ---
 
@@ -203,7 +268,8 @@ markers, or both.
 | Squad in the fixtures with no results | Listed, dashes in the table, selectable, flat at zero in the chart. |
 | Squad in the results but not in the fixtures | Listed — its season has ended. Label from config, falling back to the stored feed name. |
 | No squads selected | Empty plot area reading "Pick a squad to compare", not a blank box. |
-| A single squad selected | A valid chart, not an error. One line is a legitimate view. |
+| A single squad selected | A valid chart, not an error. One line is a legitimate view. No legend box needed — the title names it — but the checkbox list stays. |
+| More than 8 squads selected | Renders, with the warning above. Never blocked. |
 | Fewer weeks of data than the window | Axis shows only the weeks that exist. Never pads with empty weeks to fill five. |
 
 ---
@@ -224,6 +290,10 @@ Vitest, node environment, matching existing conventions.
 - **`teams.js`** — `fillLabelGaps` names a retired squad from config and leaves
   a squad still in the fixture list untouched. The existing retired-squad test
   in `results.test.js` must still pass unchanged after the refactor.
+- **`squadColors.js`** — `strokeOn` lifts `#080080` to at least 3:1 against
+  `#182029` while keeping its hue; leaves a colour that already passes
+  unchanged; and is idempotent. Asserted as a ratio computed in the test, not as
+  a hardcoded hex, so the function may improve without the test lying.
 - **Components** — SSR smoke tests via `renderToStaticMarkup`: the table
   renders a squad's record; a squad with no results renders dashes rather than
   `0.00`; the chart emits one `<path>` per selected squad; the null-store
@@ -246,12 +316,11 @@ mid-season, so these assert rules, not totals.
   `App.jsx` already holds.
 - Nothing new is fetched, written or persisted. `scripts/check.mjs` and the
   data repo's workflow are untouched.
-- The `U21` and `Women's Championship` squads both resolve to the bare feed
-  name "Craughwell United" today — two of the nine squads still needing a label
-  in `teams.json`. Comparing them, which is the owner's stated use case, needs
-  those set first. `teams.json` lives in the **data** repo, so this work cannot
-  set them: they are entered on the Squads tab and pasted to GitHub, per the
-  existing edit-here / copy / paste flow.
+- All 19 squads in the live `teams.json` already carry a label and a colour,
+  including "U21 Men" and "Championship Women" — the owner's stated comparison
+  works with no config change. (An earlier draft of this spec claimed those two
+  were unlabelled; that was read from a stale local copy of `teams.json` and is
+  wrong.)
 - The chart gets more useful as the season goes. With eight of nine squads on a
   single game, `Full season` and `Last 5 weeks` currently show nearly the same
   thing. That is expected, not a defect.
