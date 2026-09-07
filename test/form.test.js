@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   squadRecords, defaultSelection, weekAxis, weekSeries, FORM_WINDOWS,
+  seriesGeometry, CHART_PADDING,
 } from "../src/lib/form.js";
 
 const config = {
@@ -293,5 +294,94 @@ describe("weekSeries", () => {
 
   it("is empty when nothing has been played", () => {
     expect(weekSeries([], [fixture()], config, opts())).toEqual([]);
+  });
+});
+
+describe("seriesGeometry", () => {
+  const weeks = ["2026-08-31", "2026-09-07", "2026-09-14"];
+  const series = [
+    { teamId: "11", label: "U14A Boys", color: "#d9c53c", dash: "", values: [3, 3, 6] },
+    { teamId: "22", label: "U14B Boys", color: "#b95ad9", dash: "6 3", values: [0, 1, 1] },
+  ];
+  const geo = () => seriesGeometry(series, weeks, 600, 200);
+
+  it("returns one line per series, keeping identity, colour and dash", () => {
+    const { lines } = geo();
+    expect(lines.map((l) => l.teamId)).toEqual(["11", "22"]);
+    expect(lines[0].color).toBe("#d9c53c");
+    expect(lines[1].dash).toBe("6 3");
+  });
+
+  it("gives each line an SVG path with one point per week", () => {
+    const { lines } = geo();
+    expect(lines[0].points).toHaveLength(3);
+    expect(lines[0].d.startsWith("M")).toBe(true);
+    expect(lines[0].d.match(/L/g)).toHaveLength(2);
+  });
+
+  it("puts the first week at the left edge and the last at the right", () => {
+    const { lines } = geo();
+    expect(lines[0].points[0].x).toBeCloseTo(CHART_PADDING.left);
+    expect(lines[0].points[2].x).toBeCloseTo(600 - CHART_PADDING.right);
+  });
+
+  // Y grows upward on screen, so a bigger value is a SMALLER y.
+  it("puts a higher value higher up", () => {
+    const { lines } = geo();
+    expect(lines[0].points[2].y).toBeLessThan(lines[0].points[0].y);
+  });
+
+  it("starts the y scale at zero and covers the largest value", () => {
+    const { yMax, yTicks } = geo();
+    expect(yMax).toBeGreaterThanOrEqual(6);
+    expect(yTicks[0].label).toBe("0");
+  });
+
+  it("keeps a zero value on the baseline", () => {
+    const { lines } = geo();
+    expect(lines[1].points[0].y).toBeCloseTo(200 - CHART_PADDING.bottom);
+  });
+
+  it("labels every tick with whole points, never a fraction", () => {
+    const { yTicks } = seriesGeometry(series, weeks, 600, 200);
+    for (const tick of yTicks) expect(tick.label).toMatch(/^\d+$/);
+  });
+
+  it("carries the week and the value on each point, for the hover title", () => {
+    const { lines } = geo();
+    expect(lines[0].points[2].week).toBe("2026-09-14");
+    expect(lines[0].points[2].value).toBe(6);
+  });
+
+  it("thins the x ticks rather than printing all of a long season", () => {
+    // Real consecutive Mondays: shortDate is applied to these, so non-ISO placeholders
+    // would silently render "undefined NaN undefined" and the test would still pass.
+    const many = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date("2026-08-31T00:00:00Z");
+      d.setUTCDate(d.getUTCDate() + i * 7);
+      return d.toISOString().slice(0, 10);
+    });
+    const long = [{ teamId: "11", label: "L", color: "#fff", dash: "", values: many.map(() => 1) }];
+    const { xTicks } = seriesGeometry(long, many, 600, 200);
+    expect(xTicks.length).toBeLessThanOrEqual(6);
+    expect(xTicks.length).toBeGreaterThan(1);
+    expect(xTicks[0].label).toMatch(/Mon/);
+  });
+
+  it("centres a single week rather than dividing by zero", () => {
+    const one = [{ teamId: "11", label: "L", color: "#fff", dash: "", values: [3] }];
+    const { lines } = seriesGeometry(one, ["2026-09-07"], 600, 200);
+    expect(Number.isFinite(lines[0].points[0].x)).toBe(true);
+    expect(lines[0].points[0].x).toBeGreaterThan(CHART_PADDING.left);
+  });
+
+  it("survives an empty selection", () => {
+    const { lines, yMax } = seriesGeometry([], weeks, 600, 200);
+    expect(lines).toEqual([]);
+    expect(yMax).toBeGreaterThan(0);
+  });
+
+  it("never produces NaN in a path", () => {
+    for (const { d } of geo().lines) expect(d).not.toMatch(/NaN/);
   });
 });

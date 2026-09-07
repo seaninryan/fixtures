@@ -6,6 +6,7 @@
 import { resolveTeams, fillLabelGaps } from "./teams.js";
 import { weekStart, addDays } from "./window.js";
 import { squadColor, strokeOn, squadDash } from "./squadColors.js";
+import { shortDate } from "./announce.js";
 
 // 3 for a win, 1 for a draw, 0 for a loss. Stated flatly rather than configured: it is
 // the standard, and a knob nobody turns is a knob that rots. If the GFA ever differs,
@@ -182,4 +183,71 @@ export function weekSeries(results, fixtures, config, { mode, windowName, teamId
       values,
     };
   });
+}
+
+// Room for the axis labels. The chart is drawn in a fixed viewBox and scaled by CSS, so
+// these are viewBox units and not pixels - which is why they do not change with screen
+// size.
+export const CHART_PADDING = { top: 10, right: 14, bottom: 24, left: 30 };
+
+// At most this many x labels, however long the season gets.
+const MAX_X_TICKS = 6;
+const Y_TICKS = 4;
+
+const round = (n) => Math.round(n * 10) / 10;
+
+// A y scale that ends on a whole number of points and gives Y_TICKS even steps. Points
+// are integers, so a tick reading "2.5" would be meaningless.
+function yScaleMax(maxValue) {
+  const step = Math.max(1, Math.ceil(maxValue / Y_TICKS));
+  return step * Y_TICKS;
+}
+
+// Everything the component needs, and nothing it has to calculate:
+// {yMax, xTicks, yTicks, lines: [{teamId, label, color, dash, d, points}]}
+export function seriesGeometry(series, weeks, width, height) {
+  const plotWidth = width - CHART_PADDING.left - CHART_PADDING.right;
+  const plotHeight = height - CHART_PADDING.top - CHART_PADDING.bottom;
+  const columns = weeks?.length ?? 0;
+
+  const highest = Math.max(0, ...(series ?? []).flatMap((s) => s.values));
+  const yMax = yScaleMax(highest);
+
+  // A single column has no span to divide, so centre it rather than divide by zero.
+  const xAt = (i) => (columns <= 1
+    ? CHART_PADDING.left + plotWidth / 2
+    : CHART_PADDING.left + (i * plotWidth) / (columns - 1));
+  const yAt = (v) => CHART_PADDING.top + plotHeight - (v / yMax) * plotHeight;
+
+  // Thin to at most MAX_X_TICKS, always keeping the first and last week: a season of 30
+  // weeks would otherwise print 30 overlapping dates.
+  //
+  // Divided by MAX_X_TICKS - 1, not MAX_X_TICKS: the last week is always kept on top of
+  // the every-nth ones, so dividing by the full count yields one tick too many.
+  const every = Math.max(1, Math.ceil(columns / (MAX_X_TICKS - 1)));
+  const xTicks = (weeks ?? [])
+    .map((week, i) => ({ week, i }))
+    .filter(({ i }) => i % every === 0 || i === columns - 1)
+    .map(({ week, i }) => ({ label: shortDate(week), x: round(xAt(i)) }));
+
+  const yTicks = Array.from({ length: Y_TICKS + 1 }, (_, i) => {
+    const value = (yMax / Y_TICKS) * i;
+    return { label: String(value), y: round(yAt(value)) };
+  });
+
+  const lines = (series ?? []).map((s) => {
+    const points = s.values.map((value, i) => ({
+      x: round(xAt(i)), y: round(yAt(value)), week: weeks[i], value,
+    }));
+    return {
+      teamId: s.teamId,
+      label: s.label,
+      color: s.color,
+      dash: s.dash,
+      d: points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" "),
+      points,
+    };
+  });
+
+  return { yMax, xTicks, yTicks, lines };
 }
