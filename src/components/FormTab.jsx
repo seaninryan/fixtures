@@ -1,9 +1,32 @@
-import { squadRecords } from "../lib/form.js";
+import { useState } from "react";
+import {
+  squadRecords, defaultSelection, weekAxis, weekSeries, seriesGeometry, FORM_WINDOWS,
+} from "../lib/form.js";
 import { squadColor } from "../lib/squadColors.js";
 
 // An em dash, not a zero. A squad that has yet to kick a ball must not render as 0.00,
 // which reads as "lost every game" - and nine of eighteen squads are in that state.
 const DASH = "—";
+
+// viewBox units. The SVG scales to its container by CSS, so this is an aspect ratio
+// rather than a pixel size.
+const CHART_W = 640;
+const CHART_H = 220;
+
+// Above this many lines, colour cannot carry identity - the dataviz guidance caps a
+// categorical palette at 8 series. The owner chose no cap, so this warns instead of
+// blocking, and the direct labels drop away before it (see DIRECT_LABEL_LIMIT).
+const CROWDED = 8;
+
+// Direct labels are the thing that makes many series readable, but they collide with
+// each other past a handful. Below this many, label every line; above it, the checkbox
+// list and the hover titles carry identity.
+const DIRECT_LABEL_LIMIT = 6;
+
+const MODES = [
+  { key: "cumulative", label: "Cumulative" },
+  { key: "weekly", label: "Weekly points" },
+];
 
 function ppg(record) {
   return record.pointsPerGame === null ? DASH : record.pointsPerGame.toFixed(2);
@@ -13,6 +36,13 @@ function ppg(record) {
 // store means nobody has played; a null one means we do not know, and rendering them
 // identically would turn a load failure into a confident "no games".
 export default function FormTab({ results, fixtures, config, today }) {
+  // Hooks run before the early return below, because a hook may never be conditional.
+  // null means "not chosen yet", so the default is computed from the data rather than
+  // pinned in an effect - which keeps this component renderable on the server.
+  const [picked, setPicked] = useState(null);
+  const [windowName, setWindowName] = useState(FORM_WINDOWS[0]);
+  const [mode, setMode] = useState("cumulative");
+
   if (results === null) {
     return (
       <section>
@@ -30,11 +60,105 @@ export default function FormTab({ results, fixtures, config, today }) {
   const stored = results?.results ?? [];
   const records = squadRecords(stored, fixtures, config);
 
+  const selected = picked ?? defaultSelection(records);
+  const weeks = weekAxis(stored, windowName, today);
+  const series = weekSeries(stored, fixtures, config, { mode, windowName, teamIds: selected, today });
+  const { xTicks, yTicks, lines } = seriesGeometry(series, weeks, CHART_W, CHART_H);
+  const labelDirectly = lines.length > 0 && lines.length <= DIRECT_LABEL_LIMIT;
+
+  function toggle(teamId) {
+    setPicked(selected.includes(teamId)
+      ? selected.filter((id) => id !== teamId)
+      : [...selected, teamId]);
+  }
+
   return (
     <section>
       {stored.length === 0 ? (
         <div className="card"><p>No results yet.</p></div>
-      ) : null}
+      ) : (
+        <>
+          <div className="row">
+            {FORM_WINDOWS.map((w) => (
+              <button key={w} className={w === windowName ? "chip on" : "chip"}
+                      onClick={() => setWindowName(w)}>{w}</button>
+            ))}
+          </div>
+          <div className="row">
+            {MODES.map((m) => (
+              <button key={m.key} className={m.key === mode ? "chip on" : "chip"}
+                      onClick={() => setMode(m.key)}>{m.label}</button>
+            ))}
+          </div>
+
+          <div className="card">
+            {lines.length === 0 ? (
+              <p className="dim">Pick a squad to compare.</p>
+            ) : (
+              <svg className="chart" viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+                   role="img" aria-label="Points by week, per squad">
+                {yTicks.map((t) => (
+                  <g key={t.label}>
+                    <line className="grid" x1="30" y1={t.y} x2={CHART_W - 14} y2={t.y} />
+                    <text className="tick" x="24" y={t.y + 4} textAnchor="end">{t.label}</text>
+                  </g>
+                ))}
+                {xTicks.map((t) => (
+                  <text key={t.label} className="tick" x={t.x} y={CHART_H - 6}
+                        textAnchor="middle">{t.label}</text>
+                ))}
+                {lines.map((line) => (
+                  <g key={line.teamId}>
+                    <path className="series" d={line.d} fill="none" stroke={line.color}
+                          strokeWidth="2" strokeDasharray={line.dash || undefined}
+                          strokeLinecap="round" strokeLinejoin="round" />
+                    {line.points.map((p) => (
+                      // A 5px marker with a 2px surface ring, so overlapping series stay
+                      // separable. The <title> is the hover tooltip - native, no JS.
+                      <circle key={`${line.teamId}-${p.week}`} cx={p.x} cy={p.y} r="5"
+                              fill={line.color} stroke="#182029" strokeWidth="2">
+                        <title>{`${line.label} — ${p.week}: ${p.value}`}</title>
+                      </circle>
+                    ))}
+                    {labelDirectly ? (
+                      <text className="series-label"
+                            x={line.points.at(-1).x - 6} y={line.points.at(-1).y - 10}
+                            textAnchor="end" fill={line.color}>{line.label}</text>
+                    ) : null}
+                  </g>
+                ))}
+              </svg>
+            )}
+          </div>
+
+          {selected.length > CROWDED ? (
+            <p className="dim">
+              {selected.length} squads selected — colour alone cannot separate this many
+              lines. The table below is the reliable read.
+            </p>
+          ) : null}
+
+          {/* The checkbox list is also the legend: every row carries its squad's colour,
+              so identity is never colour-in-the-chart alone. */}
+          <div className="card">
+            <div className="row">
+              <button className="chip" onClick={() => setPicked(records.map((r) => r.teamId))}>All</button>
+              <button className="chip" onClick={() => setPicked([])}>None</button>
+            </div>
+            {records.map((r) => (
+              <label className="legend-row" key={r.teamId}>
+                <input type="checkbox" checked={selected.includes(r.teamId)}
+                       onChange={() => toggle(r.teamId)} />
+                <span className="swatch inline" style={{ background: squadColor(r.teamId, config).bg }}
+                      aria-hidden="true" />
+                <span>{r.label}</span>
+                <span className="dim">{r.played === 0 ? "no games" : `${r.played} played`}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+
       <div className="card">
         <table className="form-table">
           <thead>

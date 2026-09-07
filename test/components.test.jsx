@@ -179,6 +179,13 @@ const formConfig = { version: 1, teams: {
   "33": { label: "U13 Boys", color: "#080080" },
 } };
 
+// The squad's row in the form table. The labels appear in the chart and its legend too,
+// so every table assertion has to start from the table itself.
+function tableRow(html, label) {
+  const table = html.slice(html.indexOf('class="form-table"'));
+  return table.slice(table.indexOf(label)).split("</tr>")[0];
+}
+
 describe("FormTab", () => {
   const render = (over = {}) => renderToStaticMarkup(
     <FormTab results={{ version: 1, results: formResults }} fixtures={formFixtures}
@@ -195,8 +202,9 @@ describe("FormTab", () => {
   // game". Asserted on that squad's ROW, not the whole page: U13 Boys played and lost
   // 0-4, so a legitimate 0.00 exists elsewhere in the table.
   it("renders dashes, not zeros, for a squad that has not played", () => {
-    const html = render();
-    const row = html.slice(html.indexOf("U14B Boys")).split("</tr>")[0];
+    // Scoped to the TABLE: the squad labels also appear in the chart legend above it,
+    // so a bare indexOf would find the wrong occurrence.
+    const row = tableRow(render(), "U14B Boys");
     expect(row).toContain("\u2014");
     expect(row).not.toMatch(/\d\.\d\d/);
   });
@@ -204,9 +212,7 @@ describe("FormTab", () => {
   // The other half of the same rule: a squad that DID play and took nothing shows a real
   // 0.00. Without this, "dashes everywhere" would pass the test above and be wrong.
   it("renders a real 0.00 for a squad that played and took no points", () => {
-    const html = render();
-    const row = html.slice(html.indexOf("U13 Boys")).split("</tr>")[0];
-    expect(row).toContain("0.00");
+    expect(tableRow(render(), "U13 Boys")).toContain("0.00");
   });
 
   it("says the store could not be loaded rather than claiming nobody played", () => {
@@ -226,6 +232,48 @@ describe("FormTab", () => {
     const html = render({ config: bare });
     expect(html).toContain("U14A Boys");
     expect(html).toContain("U14B Boys");
+  });
+
+  it("draws one path per selected squad", () => {
+    const html = render();
+    // Two squads have played, so the default selection is those two.
+    expect(html.match(/<path[^>]*class="series"/g)).toHaveLength(2);
+  });
+
+  it("offers both windows and both modes", () => {
+    const html = render();
+    expect(html).toContain("Last 5 weeks");
+    expect(html).toContain("Full season");
+    expect(html).toContain("Weekly points");
+    expect(html).toContain("Cumulative");
+  });
+
+  it("lists every squad as a checkbox, so the list doubles as the legend", () => {
+    const html = render();
+    expect(html.match(/type="checkbox"/g)).toHaveLength(3);
+    expect(html).toContain("U14A Boys");
+    expect(html).toContain("U14B Boys");
+  });
+
+  // Identity must not rest on colour alone: every point carries a native tooltip.
+  it("gives each plotted point a title naming the squad, the week and the value", () => {
+    const html = render();
+    expect(html).toMatch(/<title>U14A Boys/);
+  });
+
+  // A dark squad colour is invisible as a line on the card, so the chart must not use
+  // the raw chip colour. #080080 is 1.03:1 against #182029. Squad 33 owns it and has a
+  // result, so it IS selected by default - without that this test would pass vacuously.
+  it("does not stroke a line in a colour that is invisible on the card", () => {
+    const html = render();
+    expect(html).toContain("U13 Boys");           // the squad is on the chart
+    expect(html).not.toContain('stroke="#080080"'); // but not in its chip colour
+  });
+
+  it("renders no chart when the store is empty", () => {
+    const html = render({ results: { version: 1, results: [] } });
+    expect(html).not.toContain('class="series"');
+    expect(html).toMatch(/No results yet/i);
   });
 });
 
