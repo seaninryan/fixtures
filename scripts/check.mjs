@@ -11,6 +11,7 @@ import { runCheck } from "../src/lib/runCheck.js";
 import { changeReport } from "../src/lib/changeReport.js";
 import { fetchTeams, fetchMatches, fetchMatchDetail } from "../src/lib/fetchFaiConnect.js";
 import { runFaiCheck } from "../src/lib/runFaiCheck.js";
+import { homeSide } from "../src/lib/faiConnect.js";
 import { seedConfig } from "../src/lib/teams.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -143,7 +144,15 @@ async function collectFai(opts) {
   // formatFixtureLine names a ground only for a home game played somewhere other than
   // Craughwell, so an away venue is a request whose answer is never rendered.
   const facilities = {};
-  const home = Object.values(matches).flatMap((m) => m.future).filter((m) => m.team === "H");
+
+  // Which side we were comes from the team IDS, never from `match.team` - see
+  // faiConnect.homeSide. That letter is relative to the requested team and is demoted to a
+  // cross-check precisely because a wrong, absent or lowercased one swaps us for the
+  // opponent silently; trusting it here would leave a genuinely home fixture with no venue
+  // lookup at all. homeSide needs the team id, and the key of `matches` IS that id, so
+  // this walks the entries rather than flat-mapping the values.
+  const home = Object.entries(matches).flatMap(([teamId, m]) =>
+    m.future.filter((match) => homeSide(match, teamId) === true));
   for (const match of home) {
     // A venue is the one field a fixture can publish without, and this endpoint is
     // undocumented - so a failure here degrades to "no venue" instead of failing the scan.
