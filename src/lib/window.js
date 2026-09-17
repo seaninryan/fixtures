@@ -46,33 +46,6 @@ export function windowPredicate(name, today) {
   return (fixture) => fixture.date >= from && fixture.date <= to;
 }
 
-// The backward twins, for results. Added as separate exports rather than by
-// generalising windowRange: that function is load-bearing for the announcement and
-// its weekend logic is subtle enough not to disturb for the sake of sharing five
-// lines of arithmetic. There is deliberately no weekend window here - this club plays
-// midweek evenings routinely, and a weekend-only default hid half the results store.
-export const RESULT_WINDOWS = ["Last 7 days", "Last 14 days", "All"];
-
-export function resultWindowRange(name, today) {
-  // Every backward window is clamped to the season, not just "All". In the first days of
-  // August a 14-day window reaches into July - last season - and the round-up would show
-  // results the Form tab has already stopped counting. One rule, applied once.
-  const from = seasonStart(today);
-  if (name === "Last 7 days") return { from: max(addDays(today, -6), from), to: today };
-  if (name === "Last 14 days") return { from: max(addDays(today, -13), from), to: today };
-  // "All", and anything unrecognised: everything this SEASON. A stale "Last weekend"
-  // reaches here now that the window is gone, and lands on the safe answer rather than
-  // on an empty range.
-  return { from, to: "9999-12-31" };
-}
-
-const max = (a, b) => (a >= b ? a : b);
-
-export function resultWindowPredicate(name, today) {
-  const { from, to } = resultWindowRange(name, today);
-  return (result) => result.date >= from && result.date <= to;
-}
-
 // The season boundary. 1 August is early enough to precede every squad's first
 // competitive game - most start in September - and late enough to sit clear of the
 // previous season's tail.
@@ -93,4 +66,31 @@ export function seasonStart(today) {
 export function seasonPredicate(today) {
   const from = seasonStart(today);
   return (r) => r.date >= from;
+}
+
+// The backward twins, for results. Added as separate exports rather than by
+// generalising windowRange: that function is load-bearing for the announcement and
+// its weekend logic is subtle enough not to disturb for the sake of sharing five
+// lines of arithmetic. There is deliberately no weekend window here - this club plays
+// midweek evenings routinely, and a weekend-only default hid half the results store.
+export const RESULT_WINDOWS = ["Last 7 days", "Last 14 days", "All"];
+
+const max = (a, b) => (a >= b ? a : b);
+
+export function resultWindowRange(name, today) {
+  // Every backward window is clamped to the season, not just "All". In the first days of
+  // August a 14-day window reaches into July - last season - and the round-up would show
+  // results the Form tab has already stopped counting. One rule, applied once.
+  const from = seasonStart(today);
+  if (name === "Last 7 days") return { from: max(addDays(today, -6), from), to: today };
+  if (name === "Last 14 days") return { from: max(addDays(today, -13), from), to: today };
+  // "All", and anything unrecognised: everything this SEASON. A stale "Last weekend"
+  // reaches here now that the window is gone, and lands on the safe answer rather than
+  // on an empty range.
+  return { from, to: "9999-12-31" };
+}
+
+export function resultWindowPredicate(name, today) {
+  const { from, to } = resultWindowRange(name, today);
+  return (result) => result.date >= from && result.date <= to;
 }
