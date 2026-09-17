@@ -342,8 +342,14 @@ way `results.json` already does: a missing `latest-fai.json` is an error state
 for the FAI section, never a spinner.
 
 **The announcement takes the union of both fixture lists in a single
-`announceLines` call**, then groups by source with a heading — youth squads in
-their current format first, then the adult squads.
+`announceLines` call**, and renders them as ONE chronological list.
+
+**Superseded 2026-09-17, same day.** This originally grouped by source under an
+"ADULT SQUADS" heading. The owner asked for the two sources to read as one after
+seeing it live, and they were right: which back-end system a fixture came from is
+plumbing, a shared Saturday reads better as one Saturday than two, and the heading
+was a wording problem waiting to happen once youth squads migrate. The single
+`announceLines` call over the union is unchanged and remains load-bearing — see below.
 
 Calling `announceLines` twice, once per source, is **not an option**. Labels
 would resolve over two filtered subsets, and `deriveLabels` decides whether to
@@ -356,7 +362,7 @@ the announcement does:
 
 | Tab | Behaviour |
 |---|---|
-| Announcement | union of `latest.json` + `latest-fai.json`, grouped by source |
+| Announcement | union of `latest.json` + `latest-fai.json`, one chronological list |
 | Results | union of `results.json` + `results-fai.json`, one round-up |
 | Form | union of both results stores and both fixture lists |
 | Changes | union of `changes.json` + `changes-fai.json`, newest first |
