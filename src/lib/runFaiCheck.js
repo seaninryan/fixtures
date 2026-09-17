@@ -24,6 +24,14 @@ export function runFaiCheck({
     throw new Error("aborting: FAI Connect returned no teams for the club");
   }
 
+  // `today` decides the season floor, and that floor is applied on INGEST where
+  // mergeResults never deletes. seasonStart deliberately fails OPEN on a malformed date -
+  // right when reading, permanent when writing - so this is the one caller that must
+  // refuse it rather than inherit it.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(today))) {
+    throw new Error(`aborting: today must be an ISO date, got "${today}"`);
+  }
+
   // Keyed by fid, for faiFixtures' venue fallback: a facility lookup that FAILED leaves
   // no entry in `facilities`, and rendering that absence as "" would report a venue being
   // removed. Yesterday's venue is the only value that does not invent a change.

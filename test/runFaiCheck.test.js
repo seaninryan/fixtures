@@ -55,6 +55,11 @@ describe("runFaiCheck", () => {
     expect(() => runFaiCheck({ ...base, teams: [] })).toThrow(/no teams/i);
   });
 
+  it("refuses a malformed today rather than admitting two dead seasons forever", () => {
+    expect(() => runFaiCheck({ ...base, today: undefined })).toThrow(/ISO date/);
+    expect(() => runFaiCheck({ ...base, today: "2026-9-5" })).toThrow(/ISO date/);
+  });
+
   it("aborts when every team goes quiet but the previous run had fixtures", () => {
     const previous = runFaiCheck(base).snapshot;
     expect(() => runFaiCheck({ ...base, matches: {}, previous }))
