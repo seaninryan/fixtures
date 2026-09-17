@@ -66,15 +66,25 @@ export default function App() {
         // would render as "No results in this window." - which reads as "nobody played"
         // when the truth is "we could not load them". That is the spinner problem in a
         // different costume, so the tab is told the difference and says so.
-        const [snapshot, history, loaded, results] = await Promise.all([
-          loadJson("latest.json"),
-          loadJson("changes.json").catch(() => []),
-          loadJson("teams.json").catch(() => ({ version: 1, teams: {} })),
-          loadJson("results.json").catch(() => null),
-        ]);
+        // The FAI files degrade the way results.json does. A club whose squads have not
+        // migrated yet has no latest-fai.json at all, and that is not an error - so the
+        // snapshot resolves to an empty fixture list rather than rejecting and blanking
+        // the whole site.
+        const [snapshot, history, loaded, results, faiSnapshot, faiHistory, faiResults] =
+          await Promise.all([
+            loadJson("latest.json"),
+            loadJson("changes.json").catch(() => []),
+            loadJson("teams.json").catch(() => ({ version: 1, teams: {} })),
+            loadJson("results.json").catch(() => null),
+            loadJson("latest-fai.json").catch(() => ({ fixtures: [] })),
+            loadJson("changes-fai.json").catch(() => []),
+            loadJson("results-fai.json").catch(() => null),
+          ]);
         if (!live) return;
         setConfig(loaded);
-        setState({ status: "ready", snapshot, history, results });
+        setState({
+          status: "ready", snapshot, history, results, faiSnapshot, faiHistory, faiResults,
+        });
       } catch (err) {
         // The data is fetched across origins, so this is a real path: offline, a
         // rate-limited CDN, a data repo that is not public yet. Saying so beats a
@@ -123,14 +133,43 @@ export default function App() {
     );
   }
 
-  const { snapshot, history, results } = state;
+  const { snapshot, faiSnapshot } = state;
   // The club's local date, not UTC. Ireland is UTC+1 for half the year, so a UTC date
   // is a day behind between Irish midnight and 01:00 - every window would then select
   // yesterday's games. `now` also carries the time, which the Results tab needs to tell
   // whether a kick-off has passed.
   const now = clubNow(new Date());
   const today = now.date;
-  const fixtures = snapshot.fixtures ?? [];
+
+  // Every tab sees BOTH sources. The files are separate; the app is not. Labels and
+  // colours come from the one shared teams.json, so a squad keeps its identity across the
+  // announcement, the round-up, the chart and the table whichever system it is on.
+  const fixtures = [...(snapshot.fixtures ?? []), ...(faiSnapshot?.fixtures ?? [])];
+
+  // ResultsTab and FormTab both read `results?.results ?? []` and both branch on
+  // `results === null`, so this must stay the WRAPPER shape and must keep null meaning
+  // "could not load" - which they render differently from "nobody played". A bare array
+  // here would silently break both tabs.
+  //
+  // null only when BOTH failed: a club whose squads have not migrated has no
+  // results-fai.json at all, and that must not blank the Results tab. The cost is that if
+  // exactly one of the two fails we show a partial store without saying so - accepted,
+  // because catch(() => null) cannot tell "absent" from "failed" across origins.
+  const results = state.results === null && state.faiResults === null
+    ? null
+    : { results: [...(state.results?.results ?? []), ...(state.faiResults?.results ?? [])] };
+
+  const history = [...(state.history ?? []), ...(state.faiHistory ?? [])]
+    .sort((a, b) => String(b.checkedAt).localeCompare(String(a.checkedAt)));
+
+  // Two sources, two fetchedAt stamps, and the OLDER one is the honest answer to "when
+  // was this last updated": the site is only as current as its stalest source, so a FAI
+  // scan that stopped running a week ago must show through rather than hide behind this
+  // morning's Galway fetch. ISO strings compare correctly, so no Date is unwrapped here.
+  // Either may be absent - one source can have no file at all - in which case the other
+  // stamp is the whole truth.
+  const stamps = [snapshot.fetchedAt, faiSnapshot?.fetchedAt].filter(Boolean);
+  const updated = stamps.length === 0 ? undefined : stamps.sort()[0];
 
   return (
     <main className="wrap">
@@ -150,7 +189,7 @@ export default function App() {
       )}
       {tab === "Changes" && <ChangesTab history={history} fixtures={fixtures} config={config} />}
       {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} onChange={setConfig} />}
-      <footer className="dim">Updated {snapshot.fetchedAt?.slice(0, 10)}</footer>
+      <footer className="dim">Updated {updated?.slice(0, 10)}</footer>
     </main>
   );
 }

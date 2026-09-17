@@ -362,3 +362,20 @@ describe("SquadsTab", () => {
     expect(html).toContain("fixtures-data/edit/main/teams.json");
   });
 });
+
+describe("both sources together", () => {
+  it("renders an announcement containing Galway and FAI squads", () => {
+    const union = [
+      ...fixtures,
+      { fid: "fai:52005172", teamId: "fai:61270", date: "2026-08-29", time: "14:00",
+        isHome: false, ourTeam: "Craughwell United Juniors", opponent: "Renmore FC",
+        venue: "", competition: "Western Hygiene Supplies Brod Trill Mens Premier League",
+        comment: "" },
+    ];
+    const html = renderToStaticMarkup(
+      <AnnouncementTab fixtures={union} config={config} today="2026-08-25" />,
+    );
+    expect(html).toContain("U14A Boys v St Bernards");
+    expect(html).toContain("Renmore FC");
+  });
+});
