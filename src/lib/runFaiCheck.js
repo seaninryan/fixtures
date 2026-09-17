@@ -16,7 +16,7 @@ export const FAI_SNAPSHOT_VERSION = 1;
 // both assembled by the caller - this module performs no I/O.
 export function runFaiCheck({
   teams, matches, facilities = {}, previous, previousResults, config,
-  now, today, history = [], siteUrl,
+  now, today, history = [], siteUrl, allowShrink = false,
 }) {
   // THE FIRST SAFETY RULE. An empty team list is a broken api_key, a User-Agent that has
   // been added to the denylist, or a moved endpoint. It is never a club with no teams.
@@ -75,6 +75,28 @@ export function runFaiCheck({
     fetchedAt: now,
     fixtures: sortFixtures(fixtures),
   };
+
+  // THE THIRD SAFETY RULE: a PARTIAL outage. The zero-fixtures rule above only catches
+  // total silence, but one squad's feed going empty while another still reports is both
+  // likelier and just as damaging - every one of that squad's upcoming fixtures diffs as
+  // `cancelled`, gets emailed, and is dropped from the baseline.
+  //
+  // Scoped to fixtures dated AFTER today, which is exactly diff.js's test for a
+  // cancellation. A squad whose season has simply ended has no future-dated fixtures to
+  // lose, so the ordinary end of a campaign never trips this - only the disappearance of
+  // games that had not been played yet.
+  const upcomingBySquad = new Map();
+  for (const f of previous?.fixtures ?? []) {
+    if (f.date > today) upcomingBySquad.set(f.teamId, (upcomingBySquad.get(f.teamId) ?? 0) + 1);
+  }
+  const nowBySquad = new Set(snapshot.fixtures.map((f) => f.teamId));
+  const vanished = [...upcomingBySquad.keys()].filter((id) => !nowBySquad.has(id));
+  if (!allowShrink && vanished.length > 0 && nowBySquad.size > 0) {
+    throw new Error(
+      `aborting: ${vanished.join(", ")} lost every upcoming fixture while other squads `
+      + "still report. Re-run with allowShrink if this is genuine.",
+    );
+  }
 
   const results = mergeResults(previousResults, rawResults, now);
   const nextConfig = seedConfig(snapshot.fixtures, config);

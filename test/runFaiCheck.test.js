@@ -69,10 +69,37 @@ describe("runFaiCheck", () => {
   it("does NOT apply the 50% shrink rule - playing games is not a collapse", () => {
     // The Juniors have 5 upcoming fixtures. Playing three in a fortnight halves the list
     // and is entirely ordinary at this scale, which is why runCheck's guard is not reused.
+    // Both squads stay present - losing one ENTIRELY is the partial-outage guard's job.
     const previous = runFaiCheck(base).snapshot;
-    const thinned = { 61270: { future: JUNIORS_FUTURE.slice(3), past: [] } };
+    const thinned = {
+      61270: { future: JUNIORS_FUTURE.slice(3), past: [] },
+      87946: { future: RESERVES_FUTURE, past: [] },
+    };
     const out = runFaiCheck({ ...base, matches: thinned, previous });
-    expect(out.snapshot.fixtures).toHaveLength(2);
+    expect(out.snapshot.fixtures).toHaveLength(5);
+  });
+
+  it("aborts when ONE squad loses every upcoming fixture while another still reports", () => {
+    const previous = runFaiCheck(base).snapshot;
+    const onlyReserves = { 87946: { future: RESERVES_FUTURE, past: [] } };
+    expect(() => runFaiCheck({ ...base, matches: onlyReserves, previous }))
+      .toThrow(/61270/);
+  });
+
+  it("lets a genuine collapse through with allowShrink", () => {
+    const previous = runFaiCheck(base).snapshot;
+    const onlyReserves = { 87946: { future: RESERVES_FUTURE, past: [] } };
+    const out = runFaiCheck({ ...base, matches: onlyReserves, previous, allowShrink: true });
+    expect(out.snapshot.fixtures).toHaveLength(3);
+  });
+
+  it("does NOT trip when a squad's season simply ends", () => {
+    // All of the Juniors' fixtures are in the past relative to this `today`, so there are
+    // no upcoming games to lose and their disappearance is ordinary.
+    const previous = runFaiCheck(base).snapshot;
+    const onlyReserves = { 87946: { future: RESERVES_FUTURE, past: [] } };
+    const out = runFaiCheck({ ...base, matches: onlyReserves, previous, today: "2027-01-01" });
+    expect(out.snapshot.fixtures).toHaveLength(3);
   });
 
   it("stores only this season's results", () => {

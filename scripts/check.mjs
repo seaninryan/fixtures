@@ -171,6 +171,9 @@ function finishFai({ teams, matches, facilities, now, today }) {
     now,
     today,
     siteUrl: SITE_URL,
+    // The same escape hatch the Galway scan has, and for the same reason: the partial-
+    // outage guard cannot tell a genuine collapse from a broken feed, so a human says so.
+    allowShrink: process.env.ALLOW_SHRINK === "1",
   });
 
   for (const err of out.errors) console.warn(`fai warning: ${err}`);
