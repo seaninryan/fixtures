@@ -19,7 +19,9 @@ npx vitest run test/diff.test.js             # one file
 npx vitest run -t "cancelled"                # by test name
 npm run build                                # catches JSX errors tests cannot
 
-FIXTURES_HTML_FILE=test/fixtures/club2960.html node scripts/check.mjs   # offline run
+FIXTURES_HTML_FILE=test/fixtures/club2960.html \
+  FAI_MATCHES_FILE=test/fixtures/fai-capture.json node scripts/check.mjs  # offline, both sources
+FIXTURES_HTML_FILE=test/fixtures/club2960.html node scripts/check.mjs   # offline, Galway only
 node scripts/check.mjs --dry-run                                        # no writes, no email
 ALLOW_SHRINK=1 node scripts/check.mjs                                   # genuine collapse
 DATA_DIR=../fixtures-data node scripts/check.mjs                        # write to the data repo
@@ -41,6 +43,14 @@ workflow's `GITHUB_TOKEN` only writes to its own repo, so running it there needs
 long-lived token. It checks this repo out read-only for the code. `scripts/check.mjs`
 is here, the workflow that calls it is there: changing the script's env contract
 (`DATA_DIR`, `FIXTURES_HTML_FILE`, `ALLOW_SHRINK`) means editing the other repo.
+
+**There are two data sources.** Galway FA's WordPress endpoint (`parse.js`, scraped
+HTML) and FAI Connect's COMET API (`faiConnect.js`, JSON). The club is migrating league
+by league; two squads have moved so far and the rest follow over coming seasons. The
+scans write separate files (`latest-fai.json`, `results-fai.json`, `changes-fai.json`)
+and **share `teams.json`**, because colour distinctness is global once the announcement
+merges them. The FAI key is a credential and lives only in the data repo's secrets - see
+`docs/superpowers/specs/2026-09-17-fai-connect-scan-design.md`.
 
 ## Architecture
 
@@ -109,6 +119,35 @@ offline runs.
   of showing the sign-in button. Only a cached token skips the button.
 - **Counts are measured, never hardcoded.** The league adds and renames squads
   mid-season; tests assert rules, not totals.
+- **FAI ids are prefixed, Galway ids are bare.** `fai:61270`. The two systems number
+  teams independently and `teams.json` is keyed on team id and holds colours, so a
+  collision would hand a squad another squad's identity. Never strip a prefix to tidy
+  a key, and never add one to a Galway id - nothing in the data repo was renamed.
+- **The FAI scan's failure must not block the Galway write.** It is a third-party API
+  serving two squads; the other nineteen must keep updating through an outage. It still
+  sets a non-zero exit, so the failure is loud. Its files are left untouched rather than
+  written empty - an empty list would read as every adult fixture being cancelled.
+- **The season starts 1 August, derived from `today`.** `seasonStart` in `window.js`.
+  The FAI `past` endpoint returns two years of history in one call and `mergeResults`
+  never deletes, so the filter runs on INGEST as well as at read time. `seasonStart`
+  fails OPEN on a malformed date, which is right when reading and permanent when
+  writing - so `runFaiCheck` refuses a malformed `today` outright.
+- **Only the "All" results window is season-bounded.** Clamping the rolling windows too
+  put a game played on 31 July beyond every window on 1 August, with nothing saying so,
+  and made `pending.js` inherit a season rule it never asked for.
+- **`isHome` comes from the team ids, never from `match.team`.** A wrong letter silently
+  swaps our side for the opponent's and publishes every score backwards. The letter is
+  kept only as a cross-check, and a disagreement drops the record loudly.
+- **A failed venue lookup carries the previous venue forward.** Rendering it as `""`
+  emits a VENUE CHANGE alert one run and emits it back the next - a failed fetch
+  rendered as real data.
+- **`runFaiCheck` guards a PARTIAL outage, not just total silence.** One squad's feed
+  going quiet while another still reports would diff its upcoming fixtures as
+  cancellations. Scoped to fixtures dated after today, so an ordinary end of season
+  never trips it. `ALLOW_SHRINK=1` is the escape hatch, as for Galway.
+- **The alert email is built ONCE, over both sources.** `changeReport` resolves labels
+  from the fixture list it is handed, so a per-source report will drop the A/B letter
+  the day a youth squad migrates while its sibling is still on Galway FA.
 
 ## The data source
 

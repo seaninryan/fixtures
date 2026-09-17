@@ -47,6 +47,15 @@ where the cron runs:
 | `ALERT_TO_EMAIL` | Where alerts go. |
 | `ALERT_FROM_EMAIL` | Defaults to `fixtures@resend.dev`, which Resend will only deliver to the address on your own Resend account. To mail anyone else, verify a domain and set this to an address on it. |
 
+The FAI Connect scan needs one more secret, **also in the data repo**, and it must be
+added to the workflow step's `env:` block as well. Until both are done the scan skips,
+says so, and the build goes red — that is the intended signal, not a regression.
+
+| Secret | Value |
+|---|---|
+| `FAI_CONNECT_API_KEY` | The FAI Connect app's API key. **A credential** — server-side only. It never belongs in this repo, in the data repo's JSON, or in browser code. |
+| `FAI_CONNECT_CLUB_ID` | Optional. Defaults to `10671`, Craughwell United. |
+
 ## Local development
 
 ```bash
@@ -55,8 +64,13 @@ npm install
 npm run dev      # http://localhost:5173/fixtures/ - reads the live data repo
 npm test
 
-# Run the whole pipeline offline against the committed capture. Writes to public/data,
-# which is gitignored scratch: the real snapshots live in the data repo.
+# Run the whole pipeline offline against the committed captures - BOTH sources, no
+# network and no API key. Writes to public/data, which is gitignored scratch: the real
+# snapshots live in the data repo.
+FIXTURES_HTML_FILE=test/fixtures/club2960.html \
+FAI_MATCHES_FILE=test/fixtures/fai-capture.json node scripts/check.mjs
+
+# Galway only. The FAI scan skips loudly and the run exits non-zero.
 FIXTURES_HTML_FILE=test/fixtures/club2960.html node scripts/check.mjs
 
 # Rehearse the live path without writing anything or sending mail
