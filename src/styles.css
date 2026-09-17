@@ -89,3 +89,10 @@ body { margin: 0; background: var(--bg); color: var(--fg);
 .form-table th[aria-sort="ascending"] .sort,
 .form-table th[aria-sort="descending"] .sort { color: var(--fg); }
 .caveat { margin: 12px 0 0; }
+
+/* The Squads tab's editing note. Sits below the controls it explains, and reads as
+   guidance rather than as another squad row. */
+.card.help { margin-top: 18px; }
+.card.help h3 { margin: 0 0 8px; font-size: 14px; }
+.card.help p { margin: 0 0 8px; }
+.card.help p:last-child { margin-bottom: 0; }

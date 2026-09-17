@@ -52,6 +52,29 @@ export default function SquadsTab({ fixtures, config, onChange }) {
         <button className="primary" onClick={copy}>{copied ? "Copied" : "Copy JSON"}</button>
         <a className="chip" href={EDIT_TEAMS_URL} target="_blank" rel="noreferrer">Edit on GitHub</a>
       </div>
+
+      {/* The edit loop is not obvious from the buttons alone, and the cache delay below
+          looks exactly like a failed save - which invites a re-paste that does nothing.
+          Saying so here is cheaper than rediscovering it every few months. */}
+      <div className="card help">
+        <h3>Editing squads</h3>
+        <p className="dim">
+          Nothing here saves by itself — the site is static and cannot write to the data
+          repo. Change the labels and colours above, press <b>Copy JSON</b>, then
+          <b> Edit on GitHub</b>, paste over the whole file and commit.
+        </p>
+        <p className="dim">
+          A squad with no label shows its raw name from the league feed, like
+          “Craughwell United Juniors”. A label you set always wins: the daily run seeds
+          new squads but never overwrites what you have typed.
+        </p>
+        <p className="dim">
+          <b>Changes take a few minutes to appear.</b> The JSON is served through GitHub’s
+          CDN, which caches compressed and uncompressed copies separately, so a reload can
+          keep showing the old file until that copy expires. That is not a failed save —
+          wait a few minutes rather than pasting again.
+        </p>
+      </div>
     </section>
   );
 }
