@@ -8,6 +8,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchFixtures } from "../src/lib/fetchFixtures.js";
 import { runCheck } from "../src/lib/runCheck.js";
+import { fetchTeams, fetchMatches, fetchMatchDetail } from "../src/lib/fetchFaiConnect.js";
+import { runFaiCheck } from "../src/lib/runFaiCheck.js";
+import { seedConfig } from "../src/lib/teams.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -18,6 +21,20 @@ const DATA = process.env.DATA_DIR
   ? resolve(process.env.DATA_DIR)
   : join(ROOT, "public", "data");
 const SITE_URL = process.env.SITE_URL || "https://seaninryan.github.io/fixtures/";
+
+// The FAI Connect scan. The club is migrating onto this system league by league, so this
+// grows as the Galway FA scrape shrinks.
+//
+// The key is a CREDENTIAL observed in the FAI Connect app's own traffic. It lives only in
+// the environment - never in this repo, never in the data repo's JSON, never in browser
+// code. The API sends no CORS headers anyway, so the site could not call it if it wanted to.
+const FAI_API_KEY = process.env.FAI_CONNECT_API_KEY;
+const FAI_CLUB_ID = process.env.FAI_CONNECT_CLUB_ID || "10671";
+
+// One captured run: the team list, each team's future/past payloads, and the match
+// details, all keyed by id. The counterpart of FIXTURES_HTML_FILE - it exercises
+// everything below the network without a key and without a request.
+const FAI_MATCHES_FILE = process.env.FAI_MATCHES_FILE;
 
 // changes.json is committed and grows one entry per changed day, forever. Keeping a
 // couple of seasons of it is useful; keeping all of it is a file nobody can open.
@@ -91,6 +108,101 @@ async function sendEmail(report) {
   console.log(`emailed: ${report.subject}`);
 }
 
+// Reads the shape written by test/fixtures/fai-capture.json.
+function readFaiCapture(path) {
+  const capture = JSON.parse(readFileSync(path, "utf8"));
+  const matches = {};
+  for (const [teamId, periods] of Object.entries(capture.matches ?? {})) {
+    matches[teamId] = { future: periods.future?.result ?? [], past: periods.past?.result ?? [] };
+  }
+  const facilities = {};
+  for (const [matchId, detail] of Object.entries(capture.details ?? {})) {
+    facilities[matchId] = detail?.facility ?? null;
+  }
+  return { teams: capture.teams ?? [], matches, facilities };
+}
+
+// Everything the FAI scan needs from the network, gathered into the plain objects
+// runFaiCheck consumes. Kept here rather than in a lib module for the same reason the
+// Galway fetch is: this is I/O, and runFaiCheck must stay pure and testable.
+async function collectFai(opts) {
+  const teams = await fetchTeams(FAI_CLUB_ID, opts);
+  const matches = {};
+  for (const team of teams) {
+    const [future, past] = await Promise.all([
+      fetchMatches(team.id, "future", opts),
+      fetchMatches(team.id, "past", opts),
+    ]);
+    // Most of the 25 teams are stale entries that have not played in two years. Recording
+    // only the ones with matches keeps the snapshot to the squads that have migrated.
+    if (future.length || past.length) matches[team.id] = { future, past };
+  }
+
+  // Venue comes from a SEPARATE call per match, and only for HOME fixtures:
+  // formatFixtureLine names a ground only for a home game played somewhere other than
+  // Craughwell, so an away venue is a request whose answer is never rendered.
+  const facilities = {};
+  const home = Object.values(matches).flatMap((m) => m.future).filter((m) => m.team === "H");
+  for (const match of home) {
+    // A venue is the one field a fixture can publish without, and this endpoint is
+    // undocumented - so a failure here degrades to "no venue" instead of failing the scan.
+    try {
+      facilities[match.id] = await fetchMatchDetail(match.id, opts);
+    } catch (err) {
+      console.warn(`fai: no venue for match ${match.id} (${err.message})`);
+    }
+  }
+  return { teams, matches, facilities };
+}
+
+// The pure-pipeline half plus the writes. Shared by the live and captured paths so the
+// offline rehearsal exercises exactly what the cron does. Returns the report to email.
+function finishFai({ teams, matches, facilities, now, today }) {
+  const out = runFaiCheck({
+    teams,
+    matches,
+    facilities,
+    previous: readJson("latest-fai.json", null),
+    previousResults: readJson("results-fai.json", null),
+    config: readJson("teams.json", null),
+    history: readJson("changes-fai.json", []),
+    now,
+    today,
+    siteUrl: SITE_URL,
+  });
+
+  for (const err of out.errors) console.warn(`fai warning: ${err}`);
+
+  writeJson("latest-fai.json", out.snapshot);
+  writeJson("results-fai.json", out.results);
+  writeJson("changes-fai.json", out.history.slice(0, HISTORY_LIMIT));
+  // teams.json is SHARED with the Galway scan and is written by main() from the union of
+  // both fixture lists. Writing it here too would have the second scan overwrite the
+  // first's seeding with a config that has never seen a Galway squad.
+  console.log(`fai: ${out.snapshot.fixtures.length} fixtures, ${out.changes.length} changes, `
+    + `${out.results.results.length} results stored`);
+  if (out.unknown.length) console.log(`fai: squads still needing a label: ${out.unknown.join(", ")}`);
+  return out.report;
+}
+
+// Returns {report, failed}. NEVER throws for a missing key: the caller decides what a
+// failure means, and the whole point of this scan being separate is that its failure must
+// not stop the Galway snapshot being written.
+async function runFai({ now, today }) {
+  if (FAI_MATCHES_FILE) {
+    console.log(`fai: reading the captured run at ${FAI_MATCHES_FILE}`);
+    return { report: finishFai({ ...readFaiCapture(FAI_MATCHES_FILE), now, today }), failed: false };
+  }
+  if (!FAI_API_KEY) {
+    // Loud, and fatal to the exit code, but not to the Galway write. A silently skipped
+    // scan would leave latest-fai.json frozen with nobody noticing.
+    console.error("FAI_CONNECT_API_KEY is not set - skipping the FAI Connect scan");
+    return { report: null, failed: true };
+  }
+  const collected = await collectFai({ apiKey: FAI_API_KEY });
+  return { report: finishFai({ ...collected, now, today }), failed: false };
+}
+
 async function main() {
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
@@ -123,7 +235,16 @@ async function main() {
   if (dropped) console.log(`history trimmed to the most recent ${HISTORY_LIMIT} runs (dropped ${dropped})`);
 
   writeJson("latest.json", out.snapshot);
-  writeJson("teams.json", out.config);
+  // Seeded from the UNION so one shared teams.json covers both sources - and so a colour
+  // handed to a Galway squad is never handed to an FAI squad as well. seedConfig walks the
+  // palette taking the first UNUSED colour, which only works if it sees every squad.
+  //
+  // The FAI side comes from the PREVIOUS snapshot, because this runs before the FAI scan.
+  // A squad that migrates today therefore gets its config entry tomorrow - a one-run lag
+  // that costs it a derived label for a day and then self-heals.
+  const faiPrevious = readJson("latest-fai.json", null);
+  const allFixtures = [...out.snapshot.fixtures, ...(faiPrevious?.fixtures ?? [])];
+  writeJson("teams.json", seedConfig(allFixtures, readJson("teams.json", null)));
   writeJson("changes.json", history);
   writeJson("results.json", out.results);
 
@@ -138,6 +259,22 @@ async function main() {
   }
 
   if (out.report) await sendEmail(out.report);
+
+  // Isolated ON PURPOSE. A third-party API serving two squads must not stop the other
+  // nineteen updating - but a failure still has to be loud, so it sets the exit code
+  // rather than being swallowed. latest-fai.json is left exactly as it was, so the site
+  // shows yesterday's FAI fixtures with an honest fetchedAt rather than an empty list
+  // that would read as "every adult fixture was cancelled".
+  let faiFailed = false;
+  try {
+    const fai = await runFai({ now, today });
+    faiFailed = fai.failed;
+    if (fai.report) await sendEmail(fai.report);
+  } catch (err) {
+    faiFailed = true;
+    console.error(`FAI Connect scan failed: ${err.message}`);
+  }
+  if (faiFailed) process.exitCode = 1;
 }
 
 // A non-zero exit is the signal that the run failed. The Action then fails visibly and
