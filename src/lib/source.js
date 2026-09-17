@@ -10,7 +10,16 @@
 // collision structurally impossible rather than merely unlikely.
 export const FAI_PREFIX = "fai:";
 
-export const faiId = (id) => `${FAI_PREFIX}${id}`;
+// THROWS on a missing id, rather than minting the legal-looking "fai:undefined". Every
+// downstream store keys on the fid: diff.js builds a Map of it and mergeResults merges on
+// it, so two id-less matches would collide into one entry and silently overwrite each
+// other - a fixture disappearing, or a result attributed to the wrong game. A crash names
+// the problem; a collision does not.
+export const faiId = (id) => {
+  const s = String(id ?? "").trim();
+  if (!s) throw new Error(`faiId: refusing to build an id from "${id}"`);
+  return `${FAI_PREFIX}${s}`;
+};
 
 // String(), so a numeric id from a hand-edited teams.json cannot throw here.
 export const isFaiId = (id) => String(id ?? "").startsWith(FAI_PREFIX);

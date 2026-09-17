@@ -6,6 +6,20 @@ describe("faiId", () => {
     expect(faiId(52005172)).toBe("fai:52005172");
     expect(faiId("61270")).toBe("fai:61270");
   });
+
+  it("throws on a missing id rather than minting \"fai:undefined\"", () => {
+    // Two id-less matches would BOTH become "fai:undefined" and collide in diff.js's
+    // map and in mergeResults - one silently overwriting the other. A crash is the
+    // lesser harm.
+    expect(() => faiId(undefined)).toThrow();
+    expect(() => faiId(null)).toThrow();
+    expect(() => faiId("")).toThrow();
+    expect(() => faiId("  ")).toThrow();
+  });
+
+  it("still accepts a legitimate zero id", () => {
+    expect(faiId(0)).toBe("fai:0");
+  });
 });
 
 describe("isFaiId", () => {

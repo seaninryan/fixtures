@@ -47,6 +47,15 @@ describe("fetchMatches", () => {
       .rejects.toThrow(/1 of 9/);
   });
 
+  it("THROWS when `result` is not an array at all", async () => {
+    // {result: {...}, size: 9}: `result.length` is undefined, `undefined < 9` is false,
+    // so the partial-page guard passed and a non-iterable was returned - failing later
+    // as a bare TypeError naming neither the team nor the endpoint.
+    const fetchImpl = vi.fn(async () => ok({ result: { id: 1 }, size: 9 }));
+    await expect(fetchMatches(61270, "past", { ...opts, fetchImpl }))
+      .rejects.toThrow(/61270.*past/);
+  });
+
   it("rejects a period it does not know", async () => {
     const fetchImpl = vi.fn();
     await expect(fetchMatches(61270, "sideways", { ...opts, fetchImpl })).rejects.toThrow();

@@ -50,6 +50,11 @@ export function statusComment(liveStatus) {
 // that one record with a line in `errors`. This mirrors it.
 const kickOffMs = (value) => (Number.isFinite(value) ? value : null);
 
+// faiId REFUSES to mint an id from nothing, because two id-less matches would collide
+// into one fid - see source.js. That refusal is a throw, so the collectors check first:
+// an id-less match must cost that match, not the whole scan.
+const hasId = (match) => String(match?.id ?? "").trim() !== "";
+
 // `facility` comes from a SEPARATE call - the paginated list carries no venue at all.
 // It is optional because it is only fetched for home fixtures: formatFixtureLine names a
 // ground only for a home game played elsewhere, so an away venue would be a request whose
@@ -100,7 +105,11 @@ export function faiFixtures(matches, teamId, facilities = {}, previousVenues = {
   const fixtures = [];
   const errors = [];
   for (const match of matches ?? []) {
-    const f = faiFixture(match, teamId, facilities?.[match?.id], previousVenues?.[faiId(match?.id)]);
+    if (!hasId(match)) {
+      errors.push(`a fixture with no id (${match?.homeTeam?.name} v ${match?.awayTeam?.name})`);
+      continue;
+    }
+    const f = faiFixture(match, teamId, facilities?.[match.id], previousVenues?.[faiId(match.id)]);
     // Both of these are "never silently wrong" cases: publishing a fixture we cannot
     // place ourselves in, or one whose two statements of which side we were disagree,
     // means printing the wrong team as ours. Dropping it is the loud answer.
@@ -163,6 +172,10 @@ export function faiResults(matches, teamId, today) {
   const results = [];
   const errors = [];
   for (const match of matches ?? []) {
+    if (!hasId(match)) {
+      errors.push(`a result with no id (${match?.homeTeam?.name} v ${match?.awayTeam?.name})`);
+      continue;
+    }
     const r = faiResult(match, teamId);
     // Before the season filter: seasonPredicate compares date strings, and a null date
     // would be silently filtered out as "not this season" with nothing said about it.

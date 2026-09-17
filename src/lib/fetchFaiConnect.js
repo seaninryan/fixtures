@@ -50,10 +50,21 @@ export async function fetchMatches(teamId, period, opts) {
     + `?page=1&pageSize=${FAI_PAGE_SIZE}`;
   const body = await getJson(url, opts);
   const result = body?.result ?? [];
+  // Before the size check, because that check assumes an array: with {result: {...}},
+  // `result.length` is undefined and `undefined < size` is false, so the guard below
+  // passes and a non-iterable is handed back. It then fails somewhere else entirely as a
+  // bare TypeError naming neither the team nor the endpoint that actually broke.
+  if (!Array.isArray(result)) {
+    throw new Error(
+      `FAI Connect returned a non-array result for team ${teamId} ${period}: `
+      + `${typeof result}`,
+    );
+  }
   const size = body?.size ?? result.length;
-  // Louder than paginating on. A club with more than 100 matches in one period is a
-  // season nobody has played, so this firing means the contract changed - and guessing
-  // at a second page would hide that behind a list that is silently missing games.
+  // Louder than paginating on. `past` returns TWO YEARS of history in one call, so 100 is
+  // nearer two and a half seasons of headroom than one - a club reaching it is a contract
+  // change, not a busy campaign. Guessing at a second page would hide that behind a list
+  // that is silently missing games.
   if (result.length < size) {
     throw new Error(
       `FAI Connect returned a partial page for team ${teamId} ${period}: `

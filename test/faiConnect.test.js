@@ -111,6 +111,15 @@ describe("faiFixtures", () => {
     expect(errors[0]).toMatch(/ids say home/);
   });
 
+  it("drops an id-less match rather than minting a colliding fid", () => {
+    // faiId throws on a missing id - two of them would share one fid and overwrite each
+    // other in diff.js's map. The collector must still cost only that match.
+    const { fixtures, errors } = faiFixtures([{ ...byId(52005175), id: undefined }],
+      FAI_JUNIORS_TEAM_ID, {}, {});
+    expect(fixtures).toHaveLength(0);
+    expect(errors).toHaveLength(1);
+  });
+
   it("drops a match that involves neither of our sides", () => {
     const wrong = { ...byId(52005175), homeTeam: { id: 1, name: "A" }, awayTeam: { id: 2, name: "B" } };
     const { fixtures, errors } = faiFixtures([wrong], FAI_JUNIORS_TEAM_ID, {}, {});
