@@ -54,13 +54,19 @@ export function windowPredicate(name, today) {
 export const RESULT_WINDOWS = ["Last 7 days", "Last 14 days", "All"];
 
 export function resultWindowRange(name, today) {
-  if (name === "Last 7 days") return { from: addDays(today, -6), to: today };
-  if (name === "Last 14 days") return { from: addDays(today, -13), to: today };
-  // "All", and anything unrecognised: showing everything beats showing nothing. A
-  // stale "Last weekend" reaches here now that the window is gone, and lands on the
-  // safe answer rather than on an empty range.
-  return { from: "0000-01-01", to: "9999-12-31" };
+  // Every backward window is clamped to the season, not just "All". In the first days of
+  // August a 14-day window reaches into July - last season - and the round-up would show
+  // results the Form tab has already stopped counting. One rule, applied once.
+  const from = seasonStart(today);
+  if (name === "Last 7 days") return { from: max(addDays(today, -6), from), to: today };
+  if (name === "Last 14 days") return { from: max(addDays(today, -13), from), to: today };
+  // "All", and anything unrecognised: everything this SEASON. A stale "Last weekend"
+  // reaches here now that the window is gone, and lands on the safe answer rather than
+  // on an empty range.
+  return { from, to: "9999-12-31" };
 }
+
+const max = (a, b) => (a >= b ? a : b);
 
 export function resultWindowPredicate(name, today) {
   const { from, to } = resultWindowRange(name, today);

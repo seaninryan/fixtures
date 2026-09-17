@@ -300,9 +300,14 @@ describe("result windows", () => {
       .toEqual({ from: "2026-08-17", to: "2026-08-30" });
   });
 
-  it("shows everything for All, rather than nothing", () => {
+  // Was "shows everything for All, rather than nothing" - "All" used to mean all
+  // time (`from: "0000-01-01"`). It now means all of the CURRENT SEASON: the results
+  // store keeps every season forever, and an August "All" reaching back to a
+  // pre-2000 date would surface last season's results in the Form tab alongside
+  // this one's.
+  it("shows the whole season for All, not all time", () => {
     const { from, to } = resultWindowRange("All", "2026-08-30");
-    expect(from < "1900-01-01").toBe(true);
+    expect(from).toBe("2026-08-01");
     expect(to).toBe("9999-12-31");
   });
 
