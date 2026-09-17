@@ -379,6 +379,14 @@ describe("seasonStart", () => {
     expect(seasonStart("2027-07-31")).toBe("2026-08-01");
     expect(seasonStart("2027-08-01")).toBe("2027-08-01");
   });
+
+  it("degrades a malformed today toward everything, never nothing", () => {
+    // "showing everything beats showing nothing" - windowRange states the rule.
+    expect(seasonStart(undefined)).toBe("0000-08-01");
+    expect(seasonStart("")).toBe("0000-08-01");
+    expect(seasonStart("2026-7-5")).toBe("0000-08-01");
+    expect(resultWindowRange("All", undefined).from).toBe("0000-08-01");
+  });
 });
 
 describe("seasonPredicate", () => {
@@ -397,13 +405,25 @@ describe("resultWindowRange season clamp", () => {
       .toEqual({ from: "2026-08-01", to: "9999-12-31" });
   });
 
-  it("clamps a backward window that would cross the boundary", () => {
-    // 14 days back from 5 Aug reaches 23 July - last season.
-    expect(resultWindowRange("Last 14 days", "2026-08-05").from).toBe("2026-08-01");
+  it("does NOT season-clamp the rolling windows - a 31 July game stays reachable", () => {
+    // The clamp belongs to "All" alone. Clamping here too would put a game played on
+    // 31 July beyond EVERY window on 1 August, with no way for the user to get it back.
+    expect(resultWindowRange("Last 14 days", "2026-08-05").from).toBe("2026-07-23");
+    expect(resultWindowRange("Last 7 days", "2026-08-01").from).toBe("2026-07-26");
   });
 
   it("leaves a window that sits inside the season alone", () => {
     expect(resultWindowRange("Last 7 days", "2026-09-17"))
       .toEqual({ from: "2026-09-11", to: "2026-09-17" });
+  });
+
+  it("never returns an inverted range, for any window name or boundary date", () => {
+    // from is now derived from two sources, so this is the property most at risk.
+    for (const name of [...RESULT_WINDOWS, "Last weekend", undefined, ""]) {
+      for (const today of ["2026-08-01", "2026-07-31", "2026-12-31", "2027-01-01"]) {
+        const { from, to } = resultWindowRange(name, today);
+        expect(from <= to).toBe(true);
+      }
+    }
   });
 });
