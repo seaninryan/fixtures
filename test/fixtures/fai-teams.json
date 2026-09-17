@@ -1,0 +1,429 @@
+[
+ {
+  "id": 52409,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U11 boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Ballynagran,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 29985,
+  "fifaId": "1464PYF",
+  "name": "Craughwell Utd. U18 Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Ballynagran,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 61270,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United Juniors",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": ",  ",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 81046,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United Ladies",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": ", H91 XY6K ",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 52410,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U 11 Girls",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 52411,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U12A Boys 25/26",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell, Craughwell Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 42542,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U12B Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 52016,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U12B girls",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 78283,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U13A Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell, H91 XY6K Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 78284,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U13B Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 35900,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U13 Girls 25/26",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 41080,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U14A Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 75387,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U14B Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 32134,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U14 Girls",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell, Craughwell Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 61275,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U15A Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 63657,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U15B Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 61280,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U15 Girls",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 61274,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U16A Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell, Craughwell Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 62493,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U16B Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell, Craughwell Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 61273,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U17 Boys",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 61279,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U18 Girls",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Craughwell, Craughwell Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 61271,
+  "fifaId": "1464PYF",
+  "name": "Craughwell United U21",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Ballynagran,  Craughwell ",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 34104,
+  "fifaId": "1464PYF",
+  "name": "Craughwell Utd. U10 Girls",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Ballynagran,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 34105,
+  "fifaId": "1464PYF",
+  "name": "Craughwell Utd. U12 A Girls 25/26",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "craughwell,  Craughwell",
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ },
+ {
+  "id": 87946,
+  "fifaId": "1464PYF",
+  "name": "CUFC Reserves",
+  "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+  "country": "Republic of Ireland",
+  "place": "Craughwell",
+  "address": "Ballynagran,, H91 XY6K Craughwell",
+  "latitude": 53.2302689,
+  "longitude": -8.7347736,
+  "hasTeams": false,
+  "parent": {
+   "id": 10671,
+   "fifaId": "1464PYF",
+   "name": "Craughwell United",
+   "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+   "place": "Craughwell"
+  }
+ }
+]

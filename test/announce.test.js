@@ -5,7 +5,7 @@ import { normalizeAll } from "../src/lib/normalize.js";
 import { seedConfig } from "../src/lib/teams.js";
 import { windowPredicate, WINDOWS } from "../src/lib/window.js";
 import {
-  announce, announceLines, formatFixtureLine, CLUB_TITLE, HOME_VENUE,
+  announce, announceLines, formatFixtureLine, CLUB_TITLE, HOME_VENUE, FAI_SECTION_HEADING,
 } from "../src/lib/announce.js";
 
 const config = { teams: {
@@ -407,5 +407,66 @@ describe("indentation", () => {
 
   it("keeps the gap between the kick-off and the squad", () => {
     expect(announce([fx()], cfg, "All", "2026-08-25")).toContain("12:00  U14A Boys");
+  });
+});
+
+describe("announceLines source grouping", () => {
+  const config = { version: 1, teams: {} };
+  const gfaFixture = {
+    fid: "6946083", teamId: "235380", date: "2026-09-19", time: "10:00", isHome: true,
+    ourTeam: "Craughwell United", opponent: "Salthill Devon", venue: "Craughwell",
+    competition: "GFA Boys U14 Championship 1", comment: "",
+  };
+  const faiFix = {
+    fid: "fai:52005172", teamId: "fai:61270", date: "2026-09-19", time: "14:00",
+    isHome: false, ourTeam: "Craughwell United Juniors", opponent: "Renmore FC",
+    venue: "", competition: "Western Hygiene Supplies Brod Trill Mens Premier League",
+    comment: "",
+  };
+
+  it("puts the FAI squads after a heading of their own", () => {
+    const lines = announceLines([gfaFixture, faiFix], config, "All", "2026-09-19");
+    const kinds = lines.map((l) => l.kind);
+    const heading = kinds.indexOf("section");
+    expect(heading).toBeGreaterThan(-1);
+    const texts = lines.map((l) => l.text);
+    expect(texts[heading]).toBe(FAI_SECTION_HEADING);
+    expect(texts.findIndex((t) => t.includes("Salthill Devon"))).toBeLessThan(heading);
+    expect(texts.findIndex((t) => t.includes("Renmore FC"))).toBeGreaterThan(heading);
+  });
+
+  it("emits NO heading when only Galway squads play - today's ordinary weekend", () => {
+    const lines = announceLines([gfaFixture], config, "All", "2026-09-19");
+    expect(lines.some((l) => l.kind === "section")).toBe(false);
+  });
+
+  it("emits NO heading when only FAI squads play", () => {
+    const lines = announceLines([faiFix], config, "All", "2026-09-19");
+    expect(lines.some((l) => l.kind === "section")).toBe(false);
+  });
+
+  it("resolves labels over the WHOLE union, never per section", () => {
+    // Two U14 Boys sides means the A/B letter must appear. Adding an FAI squad must not
+    // change that count - and rendering each section with its own resolveTeams call would.
+    const a = { ...gfaFixture, teamId: "1", ourTeam: "Craughwell United" };
+    const b = { ...gfaFixture, fid: "6946084", teamId: "2", ourTeam: "Craughwell United B" };
+    const lines = announceLines([a, b, faiFix], config, "All", "2026-09-19");
+    const text = lines.map((l) => l.text).join("\n");
+    expect(text).toContain("U14A Boys");
+    expect(text).toContain("U14B Boys");
+  });
+
+  it("restarts day headings inside the FAI section", () => {
+    const lines = announceLines([gfaFixture, faiFix], config, "All", "2026-09-19");
+    const days = lines.filter((l) => l.kind === "day").map((l) => l.text);
+    expect(days).toEqual(["SATURDAY 19 SEPTEMBER", "SATURDAY 19 SEPTEMBER"]);
+  });
+
+  it("keeps a Galway-only announcement byte-identical to before this feature", () => {
+    // The ordinary weekend must not change at all.
+    const text = announceLines([gfaFixture], config, "All", "2026-09-19")
+      .map((l) => l.text).join("\n");
+    expect(text).not.toContain(FAI_SECTION_HEADING);
+    expect(text).toContain("10:00  U14 Boys v Salthill Devon");
   });
 });

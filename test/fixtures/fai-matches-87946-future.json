@@ -1,0 +1,137 @@
+{
+ "result": [
+  {
+   "id": 52871790,
+   "homeTeam": {
+    "id": 87946,
+    "name": "CUFC Reserves",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "awayTeam": {
+    "id": 53871,
+    "name": "East Galway United FC - Reserves",
+    "picture": "3256ecc5-a76d-4b3d-979f-2c56f23a8ab6",
+    "place": "Ballinasloe",
+    "parent": {
+     "id": 10851,
+     "name": "East Galway United FC",
+     "picture": "3256ecc5-a76d-4b3d-979f-2c56f23a8ab6",
+     "place": "Ballinasloe"
+    }
+   },
+   "liveStatus": "SCHEDULED",
+   "dateTimeUTC": 1789916400000,
+   "round": "1",
+   "roundOrder": 1,
+   "matchNumber": 5,
+   "competition": {
+    "id": 51395847,
+    "name": "Western Hygiene Supplies Mens Reserve League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "team": "H",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 52871791,
+   "homeTeam": {
+    "id": 45728,
+    "name": "Dynamo Blues FC Reserves",
+    "picture": "a3819bd5-b64a-437e-b59f-9f10f2d916c9",
+    "place": "Tuam",
+    "parent": {
+     "id": 10839,
+     "name": "Dynamo Blues FC",
+     "picture": "a3819bd5-b64a-437e-b59f-9f10f2d916c9",
+     "place": "Tuam"
+    }
+   },
+   "awayTeam": {
+    "id": 87946,
+    "name": "CUFC Reserves",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "liveStatus": "SCHEDULED",
+   "dateTimeUTC": 1791126000000,
+   "round": "2",
+   "roundOrder": 2,
+   "matchNumber": 6,
+   "competition": {
+    "id": 51395847,
+    "name": "Western Hygiene Supplies Mens Reserve League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "team": "A",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 52871799,
+   "homeTeam": {
+    "id": 87946,
+    "name": "CUFC Reserves",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "awayTeam": {
+    "id": 60892,
+    "name": "Merlin Woods Reserve 2425",
+    "picture": "7cccbae0-0d1d-48fc-a2dd-4d5f6d1ddc3b",
+    "place": "Doughiska",
+    "parent": {
+     "id": 11423,
+     "name": "Merlin Woods Sports Club",
+     "picture": "7cccbae0-0d1d-48fc-a2dd-4d5f6d1ddc3b",
+     "place": "Doughiska"
+    }
+   },
+   "liveStatus": "SCHEDULED",
+   "dateTimeUTC": 1792335600000,
+   "round": "3",
+   "roundOrder": 3,
+   "matchNumber": 14,
+   "competition": {
+    "id": 51395847,
+    "name": "Western Hygiene Supplies Mens Reserve League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "team": "H",
+   "showEvents": true,
+   "allowDetail": true
+  }
+ ],
+ "size": 3
+}

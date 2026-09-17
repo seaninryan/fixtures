@@ -5,9 +5,20 @@
 import { windowPredicate, windowRange } from "./window.js";
 import { resolveTeams } from "./teams.js";
 import { squadColor } from "./squadColors.js";
+import { isFaiId } from "./source.js";
 
 export const CLUB_TITLE = "CRAUGHWELL UNITED";
 export const HOME_VENUE = "Craughwell";
+
+// The heading above the squads whose league has migrated to FAI Connect.
+//
+// It names the SQUADS, not the system: "FAI CONNECT" would leak plumbing into a message
+// pasted into a club WhatsApp group. Today the migrated squads are the two adult men's
+// sides, which is what this says. As youth squads migrate the wording stops being true
+// and must be revisited - which is why the heading is suppressed entirely unless BOTH
+// sources have fixtures in the window, so it disappears of its own accord at the end of
+// the migration rather than becoming quietly wrong.
+export const FAI_SECTION_HEADING = "ADULT SQUADS";
 
 const DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -94,20 +105,42 @@ export function announceLines(fixtures, config, windowName, today) {
   // gender, and that count must not change with the window.
   const { labels } = resolveTeams(all, config);
 
-  let currentDay = null;
-  for (const fixture of chosen) {
-    if (fixture.date !== currentDay) {
-      currentDay = fixture.date;
+  // Grouped by source, NOT resolved per source. `labels` above came from resolveTeams
+  // over every fixture in the union, which is the whole reason this is one call and not
+  // two: deriveLabels decides whether to show the A/B letter by COUNTING the club's
+  // squads at that age and gender in the list it is given, so announcing each source
+  // separately would silently rename "U14A Boys" to "U14 Boys". That bug has appeared
+  // three times in this codebase; grouping after the fact is what keeps it away.
+  const galway = chosen.filter((f) => !isFaiId(f.teamId));
+  const fai = chosen.filter((f) => isFaiId(f.teamId));
+
+  const pushSection = (section, heading) => {
+    if (section.length === 0) return;
+    if (heading) {
       lines.push({ kind: "blank", text: "" });
-      lines.push({ kind: "day", text: dayHeading(currentDay) });
+      lines.push({ kind: "section", text: heading });
     }
-    lines.push({
-      kind: "fixture",
-      text: formatFixtureLine(fixture, labels),
-      teamId: fixture.teamId,
-      color: squadColor(fixture.teamId, config).bg,
-    });
-  }
+    let currentDay = null;
+    for (const fixture of section) {
+      if (fixture.date !== currentDay) {
+        currentDay = fixture.date;
+        lines.push({ kind: "blank", text: "" });
+        lines.push({ kind: "day", text: dayHeading(currentDay) });
+      }
+      lines.push({
+        kind: "fixture",
+        text: formatFixtureLine(fixture, labels),
+        teamId: fixture.teamId,
+        color: squadColor(fixture.teamId, config).bg,
+      });
+    }
+  };
+
+  // No heading when only one source has fixtures: an ordinary youth-only weekend must
+  // read exactly as it did before this feature existed.
+  const both = galway.length > 0 && fai.length > 0;
+  pushSection(galway, null);
+  pushSection(fai, both ? FAI_SECTION_HEADING : null);
 
   return lines;
 }

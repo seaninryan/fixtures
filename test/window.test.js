@@ -9,6 +9,8 @@ import {
   resultWindowPredicate,
   weekStart,
   addDays,
+  seasonStart,
+  seasonPredicate,
 } from "../src/lib/window.js";
 import { parse } from "../src/lib/parse.js";
 import { normalizeAll } from "../src/lib/normalize.js";
@@ -298,9 +300,14 @@ describe("result windows", () => {
       .toEqual({ from: "2026-08-17", to: "2026-08-30" });
   });
 
-  it("shows everything for All, rather than nothing", () => {
+  // Was "shows everything for All, rather than nothing" - "All" used to mean all
+  // time (`from: "0000-01-01"`). It now means all of the CURRENT SEASON: the results
+  // store keeps every season forever, and an August "All" reaching back to a
+  // pre-2000 date would surface last season's results in the Form tab alongside
+  // this one's.
+  it("shows the whole season for All, not all time", () => {
     const { from, to } = resultWindowRange("All", "2026-08-30");
-    expect(from < "1900-01-01").toBe(true);
+    expect(from).toBe("2026-08-01");
     expect(to).toBe("9999-12-31");
   });
 
@@ -352,5 +359,71 @@ describe("addDays", () => {
     expect(addDays("2026-08-31", 7)).toBe("2026-09-07");
     expect(addDays("2026-09-07", -7)).toBe("2026-08-31");
     expect(addDays("2026-09-07", 0)).toBe("2026-09-07");
+  });
+});
+
+describe("seasonStart", () => {
+  it("returns 1 August of the same year on or after 1 August", () => {
+    expect(seasonStart("2026-08-01")).toBe("2026-08-01");
+    expect(seasonStart("2026-09-17")).toBe("2026-08-01");
+    expect(seasonStart("2026-12-31")).toBe("2026-08-01");
+  });
+
+  it("returns the PREVIOUS 1 August before 1 August", () => {
+    expect(seasonStart("2026-07-31")).toBe("2025-08-01");
+    expect(seasonStart("2026-01-01")).toBe("2025-08-01");
+    expect(seasonStart("2026-05-01")).toBe("2025-08-01");
+  });
+
+  it("rolls over on the boundary day, not the day after", () => {
+    expect(seasonStart("2027-07-31")).toBe("2026-08-01");
+    expect(seasonStart("2027-08-01")).toBe("2027-08-01");
+  });
+
+  it("degrades a malformed today toward everything, never nothing", () => {
+    // "showing everything beats showing nothing" - windowRange states the rule.
+    expect(seasonStart(undefined)).toBe("0000-08-01");
+    expect(seasonStart("")).toBe("0000-08-01");
+    expect(seasonStart("2026-7-5")).toBe("0000-08-01");
+    expect(resultWindowRange("All", undefined).from).toBe("0000-08-01");
+  });
+});
+
+describe("seasonPredicate", () => {
+  it("keeps this season and drops last season", () => {
+    const inSeason = seasonPredicate("2026-09-17");
+    expect(inSeason({ date: "2026-09-12" })).toBe(true);
+    expect(inSeason({ date: "2026-08-01" })).toBe(true);
+    expect(inSeason({ date: "2026-07-31" })).toBe(false);
+    expect(inSeason({ date: "2024-09-22" })).toBe(false);
+  });
+});
+
+describe("resultWindowRange season clamp", () => {
+  it("bounds All by the season start, not all time", () => {
+    expect(resultWindowRange("All", "2026-09-17"))
+      .toEqual({ from: "2026-08-01", to: "9999-12-31" });
+  });
+
+  it("does NOT season-clamp the rolling windows - a 31 July game stays reachable", () => {
+    // The clamp belongs to "All" alone. Clamping here too would put a game played on
+    // 31 July beyond EVERY window on 1 August, with no way for the user to get it back.
+    expect(resultWindowRange("Last 14 days", "2026-08-05").from).toBe("2026-07-23");
+    expect(resultWindowRange("Last 7 days", "2026-08-01").from).toBe("2026-07-26");
+  });
+
+  it("leaves a window that sits inside the season alone", () => {
+    expect(resultWindowRange("Last 7 days", "2026-09-17"))
+      .toEqual({ from: "2026-09-11", to: "2026-09-17" });
+  });
+
+  it("never returns an inverted range, for any window name or boundary date", () => {
+    // from is now derived from two sources, so this is the property most at risk.
+    for (const name of [...RESULT_WINDOWS, "Last weekend", undefined, ""]) {
+      for (const today of ["2026-08-01", "2026-07-31", "2026-12-31", "2027-01-01"]) {
+        const { from, to } = resultWindowRange(name, today);
+        expect(from <= to).toBe(true);
+      }
+    }
   });
 });
