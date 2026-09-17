@@ -1,13 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { faiFixture } from "../src/lib/faiConnect.js";
-import { FAI_JUNIORS_TEAM_ID } from "./fixtures/meta.js";
+import { faiFixture, faiResult, faiResults } from "../src/lib/faiConnect.js";
+import { FAI_JUNIORS_TEAM_ID, FAI_JUNIORS_PAST_COUNT, FAI_JUNIORS_PAST_IN_SEASON } from "./fixtures/meta.js";
 
 const load = (name) =>
   JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8"));
 
 const future = load("fai-matches-61270-future.json").result;
 const byId = (id) => future.find((m) => m.id === id);
+
+const past = load("fai-matches-61270-past.json").result;
+const pastById = (id) => past.find((m) => m.id === id);
 
 describe("faiFixture", () => {
   it("converts epoch ms to the club's LOCAL kick-off, never UTC", () => {
@@ -70,5 +73,67 @@ describe("faiFixture", () => {
   it("tolerates a null facility - one live fixture has one", () => {
     const f = faiFixture(byId(52005175), FAI_JUNIORS_TEAM_ID, null);
     expect(f.venue).toBe("");
+  });
+});
+
+describe("faiResult", () => {
+  it("stores a home defeat from OUR point of view", () => {
+    // 52005166: Craughwell 0 - 4 Mervue, at home.
+    const r = faiResult(pastById(52005166), FAI_JUNIORS_TEAM_ID);
+    expect(r.isHome).toBe(true);
+    expect(r.ourScore).toBe(0);
+    expect(r.theirScore).toBe(4);
+  });
+
+  it("flips the scores for an away game", () => {
+    // 52005161: Salthill Devon 8 - 1 Craughwell, away. Ours is the 1.
+    const r = faiResult(pastById(52005161), FAI_JUNIORS_TEAM_ID);
+    expect(r.isHome).toBe(false);
+    expect(r.ourScore).toBe(1);
+    expect(r.theirScore).toBe(8);
+  });
+
+  it("keeps a nil-all as real zeroes, not as missing", () => {
+    // 27609861: 0-0. Number("") is 0, so a blank must never reach here as a score.
+    const r = faiResult(pastById(27609861), FAI_JUNIORS_TEAM_ID);
+    expect(r.ourScore).toBe(0);
+    expect(r.theirScore).toBe(0);
+  });
+
+  it("does NOT store the W/D/L field - the scores already say who won", () => {
+    expect(faiResult(pastById(52005166), FAI_JUNIORS_TEAM_ID).result).toBeUndefined();
+  });
+});
+
+describe("faiResults", () => {
+  it("drops everything before the season start", () => {
+    const { results } = faiResults(past, FAI_JUNIORS_TEAM_ID, "2026-09-17");
+    expect(past).toHaveLength(FAI_JUNIORS_PAST_COUNT);
+    expect(results).toHaveLength(FAI_JUNIORS_PAST_IN_SEASON);
+    expect(results.map((r) => r.fid)).toEqual(["fai:52005161", "fai:52005166"]);
+  });
+
+  it("keeps the 2024 cup run OUT - mergeResults never deletes, so this is permanent", () => {
+    const { results } = faiResults(past, FAI_JUNIORS_TEAM_ID, "2026-09-17");
+    expect(results.some((r) => r.date < "2026-08-01")).toBe(false);
+  });
+
+  it("moves the floor with the season", () => {
+    // Read from 2026-09-17 the floor is 2026-08-01, so the 2024 cup run is out. Read from
+    // inside that cup run's own season the floor is 2024-08-01 and it is in. No upper
+    // bound is asserted: seasonPredicate is a floor, because a result is always a game
+    // already played.
+    const now = faiResults(past, FAI_JUNIORS_TEAM_ID, "2026-09-17").results;
+    const then = faiResults(past, FAI_JUNIORS_TEAM_ID, "2025-03-01").results;
+    expect(now.some((r) => r.date === "2024-09-22")).toBe(false);
+    expect(then.some((r) => r.date === "2024-09-22")).toBe(true);
+  });
+
+  it("skips a match with no score rather than inventing a draw", () => {
+    const unplayed = [{ ...pastById(52005166), homeTeamResult: null, awayTeamResult: null }];
+    const { results, errors } = faiResults(unplayed, FAI_JUNIORS_TEAM_ID, "2026-09-17");
+    expect(results).toHaveLength(0);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/fai:52005166/);
   });
 });

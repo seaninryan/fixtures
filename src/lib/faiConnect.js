@@ -2,6 +2,8 @@
 // already speaks. The counterpart of parse.js + normalize.js for the second source.
 import { clubNow } from "./clock.js";
 import { faiId } from "./source.js";
+import { sortResults } from "./normalize.js";
+import { seasonPredicate } from "./window.js";
 
 // `match.team` is "H" or "A" RELATIVE TO THE REQUESTED TEAM, which is why every function
 // here takes the team id it was fetched for. It is not derivable from the match alone in
@@ -46,4 +48,55 @@ export function faiFixture(match, teamId, facility) {
     competition: match.competition?.name ?? "",
     comment: statusComment(match.liveStatus),
   };
+}
+
+// `.current` is the final score; `.regular` and `.half` are the same match at other
+// moments and are deliberately ignored. A missing block means the match has no score yet,
+// which is not the same as nil-all - hence null rather than 0.
+const scoreOf = (side) => (typeof side?.current === "number" ? side.current : null);
+
+export function faiResult(match, teamId) {
+  const isHome = isHomeSide(match);
+  const ours = isHome ? match.homeTeam : match.awayTeam;
+  const opponent = isHome ? match.awayTeam : match.homeTeam;
+  const { date } = clubNow(new Date(match.dateTimeUTC));
+  const home = scoreOf(match.homeTeamResult);
+  const away = scoreOf(match.awayTeamResult);
+  return {
+    fid: faiId(match.id),
+    teamId: faiId(teamId),
+    date,
+    isHome,
+    ourTeam: ours.name,
+    opponent: opponent.name,
+    // Stored from OUR point of view with isHome recording which side we were, exactly as
+    // normalizeResult does, so a stored result reads correctly on its own.
+    ourScore: isHome ? home : away,
+    theirScore: isHome ? away : home,
+    venue: "",
+    competition: match.competition?.name ?? "",
+  };
+}
+
+// -> {results, errors}. `today` decides the season; see window.js seasonStart.
+//
+// THE SEASON FILTER IS THE POINT OF THIS FUNCTION. The past endpoint returns TWO YEARS of
+// history in one call - the Juniors' nine past matches reach back to 2024-09-22 - while
+// the Galway feed only ever carried the last day or two. mergeResults adds and updates but
+// NEVER deletes, so a stale match admitted once is permanent without hand-editing the data
+// repo. Filtering here, on ingest, is what keeps a 2024 cup run out of this season's form.
+export function faiResults(matches, teamId, today) {
+  const inSeason = seasonPredicate(today);
+  const results = [];
+  const errors = [];
+  for (const match of matches ?? []) {
+    const r = faiResult(match, teamId);
+    if (!inSeason(r)) continue;
+    if (r.ourScore === null || r.theirScore === null) {
+      errors.push(`${r.fid}: no score on a past match (${r.ourTeam} v ${r.opponent})`);
+      continue;
+    }
+    results.push(r);
+  }
+  return { results: sortResults(results), errors };
 }
