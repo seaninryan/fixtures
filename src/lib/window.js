@@ -66,3 +66,25 @@ export function resultWindowPredicate(name, today) {
   const { from, to } = resultWindowRange(name, today);
   return (result) => result.date >= from && result.date <= to;
 }
+
+// The season boundary. 1 August is early enough to precede every squad's first
+// competitive game - most start in September - and late enough to sit clear of the
+// previous season's tail.
+//
+// Derived from `today` rather than configured, so it rolls over on its own: there is no
+// constant to forget to edit each August. Pure string arithmetic, like everything else
+// here - "2026-09-17" >= "2026-08-01" is a correct comparison on ISO dates.
+export const SEASON_START_MONTH_DAY = "08-01";
+
+export function seasonStart(today) {
+  const year = Number(String(today).slice(0, 4));
+  const thisYears = `${year}-${SEASON_START_MONTH_DAY}`;
+  return today >= thisYears ? thisYears : `${year - 1}-${SEASON_START_MONTH_DAY}`;
+}
+
+// For filtering a results store, which keeps every season forever - mergeResults never
+// deletes. Anything dated before the boundary belongs to a season that has ended.
+export function seasonPredicate(today) {
+  const from = seasonStart(today);
+  return (r) => r.date >= from;
+}

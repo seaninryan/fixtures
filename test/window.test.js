@@ -9,6 +9,8 @@ import {
   resultWindowPredicate,
   weekStart,
   addDays,
+  seasonStart,
+  seasonPredicate,
 } from "../src/lib/window.js";
 import { parse } from "../src/lib/parse.js";
 import { normalizeAll } from "../src/lib/normalize.js";
@@ -352,5 +354,51 @@ describe("addDays", () => {
     expect(addDays("2026-08-31", 7)).toBe("2026-09-07");
     expect(addDays("2026-09-07", -7)).toBe("2026-08-31");
     expect(addDays("2026-09-07", 0)).toBe("2026-09-07");
+  });
+});
+
+describe("seasonStart", () => {
+  it("returns 1 August of the same year on or after 1 August", () => {
+    expect(seasonStart("2026-08-01")).toBe("2026-08-01");
+    expect(seasonStart("2026-09-17")).toBe("2026-08-01");
+    expect(seasonStart("2026-12-31")).toBe("2026-08-01");
+  });
+
+  it("returns the PREVIOUS 1 August before 1 August", () => {
+    expect(seasonStart("2026-07-31")).toBe("2025-08-01");
+    expect(seasonStart("2026-01-01")).toBe("2025-08-01");
+    expect(seasonStart("2026-05-01")).toBe("2025-08-01");
+  });
+
+  it("rolls over on the boundary day, not the day after", () => {
+    expect(seasonStart("2027-07-31")).toBe("2026-08-01");
+    expect(seasonStart("2027-08-01")).toBe("2027-08-01");
+  });
+});
+
+describe("seasonPredicate", () => {
+  it("keeps this season and drops last season", () => {
+    const inSeason = seasonPredicate("2026-09-17");
+    expect(inSeason({ date: "2026-09-12" })).toBe(true);
+    expect(inSeason({ date: "2026-08-01" })).toBe(true);
+    expect(inSeason({ date: "2026-07-31" })).toBe(false);
+    expect(inSeason({ date: "2024-09-22" })).toBe(false);
+  });
+});
+
+describe("resultWindowRange season clamp", () => {
+  it("bounds All by the season start, not all time", () => {
+    expect(resultWindowRange("All", "2026-09-17"))
+      .toEqual({ from: "2026-08-01", to: "9999-12-31" });
+  });
+
+  it("clamps a backward window that would cross the boundary", () => {
+    // 14 days back from 5 Aug reaches 23 July - last season.
+    expect(resultWindowRange("Last 14 days", "2026-08-05").from).toBe("2026-08-01");
+  });
+
+  it("leaves a window that sits inside the season alone", () => {
+    expect(resultWindowRange("Last 7 days", "2026-09-17"))
+      .toEqual({ from: "2026-09-11", to: "2026-09-17" });
   });
 });
