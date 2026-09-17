@@ -47,7 +47,6 @@ describe("runFaiCheck", () => {
     const out = runFaiCheck(base);
     expect(out.firstRun).toBe(true);
     expect(out.changes).toEqual([]);
-    expect(out.report).toBeNull();
   });
 
   it("aborts when team discovery comes back empty", () => {

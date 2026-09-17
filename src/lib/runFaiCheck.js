@@ -8,7 +8,6 @@ import { sortFixtures } from "./normalize.js";
 import { mergeResults } from "./results.js";
 import { diff } from "./diff.js";
 import { seedConfig, resolveTeams } from "./teams.js";
-import { changeReport } from "./changeReport.js";
 
 export const FAI_SNAPSHOT_VERSION = 1;
 
@@ -16,7 +15,7 @@ export const FAI_SNAPSHOT_VERSION = 1;
 // both assembled by the caller - this module performs no I/O.
 export function runFaiCheck({
   teams, matches, facilities = {}, previous, previousResults, config,
-  now, today, history = [], siteUrl, allowShrink = false,
+  now, today, history = [], allowShrink = false,
 }) {
   // THE FIRST SAFETY RULE. An empty team list is a broken api_key, a User-Agent that has
   // been added to the denylist, or a moved endpoint. It is never a club with no teams.
@@ -108,6 +107,11 @@ export function runFaiCheck({
 
   const results = mergeResults(previousResults, rawResults, now);
   const nextConfig = seedConfig(snapshot.fixtures, config);
+  // `unknown` only - this module builds NO report. changeReport resolves squad labels, and
+  // deriveLabels shows the A/B letter only when the club runs more than one side at that
+  // age and gender, so a report built from ONE source's fixtures renames a squad the
+  // moment a youth side migrates and its A/B sibling is still on the Galway feed. The
+  // caller builds one report over the UNION of both sources' changes; see check.mjs.
   const { unknown } = resolveTeams(snapshot.fixtures, nextConfig);
 
   // A first run has nothing to compare against. Diffing against an empty list would call
@@ -115,20 +119,11 @@ export function runFaiCheck({
   const firstRun = !previous || !Array.isArray(previous.fixtures);
   const changes = firstRun ? [] : diff(previous.fixtures, snapshot.fixtures, today);
 
-  // `snapshot.fixtures` is the NEW snapshot, and passing it is required: changeReport
-  // resolves squad labels, and deriveLabels shows the A/B letter only when the club runs
-  // more than one side at that age and gender. Letting it fall back to just the changed
-  // fixtures would rename "U14B Boys" to "U14 Boys" in the alert email.
-  const report = changeReport(changes, nextConfig, {
-    unknown, siteUrl, fixtures: snapshot.fixtures,
-  });
-
   return {
     snapshot,
     results,
     config: nextConfig,
     changes,
-    report,
     unknown,
     errors,
     firstRun,
