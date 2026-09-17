@@ -8,6 +8,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchFixtures } from "../src/lib/fetchFixtures.js";
 import { runCheck } from "../src/lib/runCheck.js";
+import { changeReport } from "../src/lib/changeReport.js";
 import { fetchTeams, fetchMatches, fetchMatchDetail } from "../src/lib/fetchFaiConnect.js";
 import { runFaiCheck } from "../src/lib/runFaiCheck.js";
 import { seedConfig } from "../src/lib/teams.js";
@@ -156,7 +157,8 @@ async function collectFai(opts) {
 }
 
 // The pure-pipeline half plus the writes. Shared by the live and captured paths so the
-// offline rehearsal exercises exactly what the cron does. Returns the report to email.
+// offline rehearsal exercises exactly what the cron does. Returns the raw materials for
+// the report, which main() builds over BOTH sources at once.
 function finishFai({ teams, matches, facilities, now, today }) {
   const out = runFaiCheck({
     teams,
@@ -182,25 +184,25 @@ function finishFai({ teams, matches, facilities, now, today }) {
   console.log(`fai: ${out.snapshot.fixtures.length} fixtures, ${out.changes.length} changes, `
     + `${out.results.results.length} results stored`);
   if (out.unknown.length) console.log(`fai: squads still needing a label: ${out.unknown.join(", ")}`);
-  return out.report;
+  return { changes: out.changes, unknown: out.unknown, fixtures: out.snapshot.fixtures };
 }
 
-// Returns {report, failed}. NEVER throws for a missing key: the caller decides what a
+// Returns {result, failed}. NEVER throws for a missing key: the caller decides what a
 // failure means, and the whole point of this scan being separate is that its failure must
 // not stop the Galway snapshot being written.
 async function runFai({ now, today }) {
   if (FAI_MATCHES_FILE) {
     console.log(`fai: reading the captured run at ${FAI_MATCHES_FILE}`);
-    return { report: finishFai({ ...readFaiCapture(FAI_MATCHES_FILE), now, today }), failed: false };
+    return { result: finishFai({ ...readFaiCapture(FAI_MATCHES_FILE), now, today }), failed: false };
   }
   if (!FAI_API_KEY) {
     // Loud, and fatal to the exit code, but not to the Galway write. A silently skipped
     // scan would leave latest-fai.json frozen with nobody noticing.
     console.error("FAI_CONNECT_API_KEY is not set - skipping the FAI Connect scan");
-    return { report: null, failed: true };
+    return { result: null, failed: true };
   }
   const collected = await collectFai({ apiKey: FAI_API_KEY });
-  return { report: finishFai({ ...collected, now, today }), failed: false };
+  return { result: finishFai({ ...collected, now, today }), failed: false };
 }
 
 async function main() {
@@ -258,22 +260,42 @@ async function main() {
     console.log(`squads still needing a label: ${out.unknown.join(", ")}`);
   }
 
-  if (out.report) await sendEmail(out.report);
-
   // Isolated ON PURPOSE. A third-party API serving two squads must not stop the other
   // nineteen updating - but a failure still has to be loud, so it sets the exit code
   // rather than being swallowed. latest-fai.json is left exactly as it was, so the site
   // shows yesterday's FAI fixtures with an honest fetchedAt rather than an empty list
   // that would read as "every adult fixture was cancelled".
   let faiFailed = false;
+  let fai = null;
   try {
-    const fai = await runFai({ now, today });
-    faiFailed = fai.failed;
-    if (fai.report) await sendEmail(fai.report);
+    const out2 = await runFai({ now, today });
+    faiFailed = out2.failed;
+    fai = out2.result;
   } catch (err) {
     faiFailed = true;
     console.error(`FAI Connect scan failed: ${err.message}`);
   }
+
+  // ONE report over BOTH sources, never one per source. changeReport resolves squad
+  // labels from the fixture list it is given, and deriveLabels shows the A/B letter only
+  // when the club runs more than one side at that age and gender - so a report built from
+  // half the club will silently rename "U15A Boys" to "U15 Boys" the day a youth squad
+  // migrates while its sibling is still on Galway FA. Same reason announceLines takes the
+  // union. Built here rather than inside either pipeline because this is the only place
+  // that has both.
+  //
+  // Built AFTER the FAI block but from whatever survived it: a failed FAI scan must not
+  // swallow the Galway alert, which is the point of the two scans being isolated.
+  const report = changeReport(
+    [...out.changes, ...(fai?.changes ?? [])],
+    readJson("teams.json", null),
+    {
+      unknown: [...out.unknown, ...(fai?.unknown ?? [])],
+      siteUrl: SITE_URL,
+      fixtures: [...out.snapshot.fixtures, ...(fai?.fixtures ?? [])],
+    },
+  );
+  if (report) await sendEmail(report);
   if (faiFailed) process.exitCode = 1;
 }
 
