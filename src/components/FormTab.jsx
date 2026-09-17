@@ -4,6 +4,7 @@ import {
   SORT_COLUMNS, DEFAULT_SORT, sortRecords,
 } from "../lib/form.js";
 import { squadColor } from "../lib/squadColors.js";
+import { seasonPredicate } from "../lib/window.js";
 
 // An em dash, not a zero. A squad that has yet to kick a ball must not render as 0.00,
 // which reads as "lost every game" - and nine of eighteen squads are in that state.
@@ -59,7 +60,13 @@ export default function FormTab({ results, fixtures, config, today }) {
     );
   }
 
-  const stored = results?.results ?? [];
+  // The results store keeps every season forever - mergeResults never deletes - so a
+  // squad's record and chart must be bounded here or, from 1 August, they silently start
+  // carrying last season's games into this season's form. Applied ONCE, above both
+  // squadRecords and weekSeries, so the table and the chart can never disagree about
+  // which season they are showing.
+  const allStored = results?.results ?? [];
+  const stored = allStored.filter(seasonPredicate(today));
   const records = squadRecords(stored, fixtures, config);
 
   // A display pass over squadRecords' stable alphabetical base - see sortRecords.

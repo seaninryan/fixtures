@@ -4,6 +4,7 @@ import {
   seriesGeometry, CHART_PADDING,
   SORT_COLUMNS, DEFAULT_SORT, sortRecords,
 } from "../src/lib/form.js";
+import { seasonPredicate } from "../src/lib/window.js";
 
 const config = {
   version: 1,
@@ -535,5 +536,31 @@ describe("sorting", () => {
   it("survives an empty or missing list", () => {
     expect(sortRecords([], "points", "desc")).toEqual([]);
     expect(sortRecords(null, "points", "desc")).toEqual([]);
+  });
+});
+
+describe("squadRecords over a season boundary", () => {
+  const cfg = { version: 1, teams: {} };
+  const result = (fid, date, ourScore, theirScore) => ({
+    fid, teamId: "fai:61270", date, isHome: true,
+    ourTeam: "Craughwell United Juniors", opponent: "Someone",
+    ourScore, theirScore, venue: "", competition: "League",
+  });
+  const all = [
+    result("a", "2024-09-22", 4, 2),   // two seasons ago
+    result("b", "2025-01-12", 1, 3),   // last season
+    result("c", "2026-09-12", 0, 4),   // this season
+  ];
+
+  it("counts only the current season once the caller filters", () => {
+    const [record] = squadRecords(all.filter(seasonPredicate("2026-09-17")), [], cfg);
+    expect(record.played).toBe(1);
+    expect(record.lost).toBe(1);
+    expect(record.won).toBe(0);
+  });
+
+  it("would otherwise carry two dead seasons into the record", () => {
+    // Guards the reason the filter exists - this is what the tab showed before it.
+    expect(squadRecords(all, [], cfg)[0].played).toBe(3);
   });
 });
