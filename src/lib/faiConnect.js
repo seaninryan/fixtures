@@ -55,7 +55,7 @@ const kickOffMs = (value) => (Number.isFinite(value) ? value : null);
 // ground only for a home game played elsewhere, so an away venue would be a request whose
 // answer is never rendered. One live fixture returns a null facility, so absence is a real
 // path, not a defensive flourish.
-export function faiFixture(match, teamId, facility) {
+export function faiFixture(match, teamId, facility, previousVenue) {
   // null (neither side is us) reads as `false` here; the collector rejects that case
   // before it can be published, and this function is not the place to decide.
   const isHome = homeSide(match, teamId) === true;
@@ -77,7 +77,13 @@ export function faiFixture(match, teamId, facility) {
     isHome,
     ourTeam: ours.name,
     opponent: opponent.name,
-    venue: facility?.place ?? "",
+    // THREE STATES, NOT TWO. `undefined` is "not fetched, or the lookup failed"; `null`
+    // is the API answering that there is genuinely no facility. Collapsing both to ""
+    // renders a transient failure as real data: diff.js compares venues, so one bad
+    // detail call on a home fixture emails `VENUE CHANGE: Craughwell -> (none)` and the
+    // next run emails it back. Carrying yesterday's venue forward is the only option
+    // that does not invent a change out of a failed fetch.
+    venue: facility === undefined ? (previousVenue ?? "") : (facility?.place ?? ""),
     competition: match.competition?.name ?? "",
     comment: statusComment(match.liveStatus),
   };

@@ -75,6 +75,18 @@ describe("faiFixture", () => {
     expect(f.venue).toBe("");
   });
 
+  it("carries the previous venue forward when the lookup failed", () => {
+    // undefined = never fetched / fetch failed. Rendering that as "" would emit a
+    // VENUE CHANGE alert this run and emit it back the next.
+    const f = faiFixture(byId(52005175), FAI_JUNIORS_TEAM_ID, undefined, "Craughwell");
+    expect(f.venue).toBe("Craughwell");
+  });
+
+  it("honours a genuinely absent facility, which is not the same as a failed lookup", () => {
+    const f = faiFixture(byId(52005175), FAI_JUNIORS_TEAM_ID, null, "Craughwell");
+    expect(f.venue).toBe("");
+  });
+
   it("derives isHome from the ids, not the team letter", () => {
     const lying = { ...byId(52005175), team: "A" };  // ids say home
     expect(faiFixture(lying, FAI_JUNIORS_TEAM_ID).isHome).toBe(true);

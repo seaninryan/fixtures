@@ -109,6 +109,17 @@ describe("runFaiCheck", () => {
     expect(out.changes.some((c) => c.fid === "fai:52005183")).toBe(true);
   });
 
+  it("does not report a venue change when the detail lookup failed", () => {
+    // The facility call is a separate, undocumented request per match. One failure leaves
+    // no entry in `facilities`; reading that as "no venue" emits VENUE CHANGE this run and
+    // emits it back the next.
+    const withVenue = { ...base, facilities: { 52005175: { place: "Craughwell" } } };
+    const previous = runFaiCheck(withVenue).snapshot;
+    const out = runFaiCheck({ ...base, previous });
+    expect(out.changes.filter((c) => c.type === "venue")).toEqual([]);
+    expect(out.snapshot.fixtures.find((f) => f.fid === "fai:52005175").venue).toBe("Craughwell");
+  });
+
   it("attaches a venue from the facilities it was given", () => {
     const out = runFaiCheck({ ...base, facilities: { 52005175: { place: "Craughwell" } } });
     const f = out.snapshot.fixtures.find((x) => x.fid === "fai:52005175");

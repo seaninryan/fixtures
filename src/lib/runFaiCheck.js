@@ -24,6 +24,12 @@ export function runFaiCheck({
     throw new Error("aborting: FAI Connect returned no teams for the club");
   }
 
+  // Keyed by fid, for faiFixtures' venue fallback: a facility lookup that FAILED leaves
+  // no entry in `facilities`, and rendering that absence as "" would report a venue being
+  // removed. Yesterday's venue is the only value that does not invent a change.
+  const previousVenues = {};
+  for (const f of previous?.fixtures ?? []) previousVenues[f.fid] = f.venue;
+
   const fixtures = [];
   const rawResults = [];
   const errors = [];
@@ -40,7 +46,7 @@ export function runFaiCheck({
     const found = matches?.[team.id];
     if (!found) continue;
     const { fixtures: teamFixtures, errors: fixtureErrors } =
-      faiFixtures(found.future, team.id, facilities);
+      faiFixtures(found.future, team.id, facilities, previousVenues);
     fixtures.push(...teamFixtures);
     errors.push(...fixtureErrors);
     const { results, errors: resultErrors } = faiResults(found.past, team.id, today);
