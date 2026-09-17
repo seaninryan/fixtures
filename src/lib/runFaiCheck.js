@@ -3,7 +3,7 @@
 // The safety rules live here rather than in the script for the same reason they do
 // there: they are the part that must be tested, and a script that talks to the network
 // and the filesystem is the hardest place to test anything.
-import { faiFixture, faiResults } from "./faiConnect.js";
+import { faiFixtures, faiResults } from "./faiConnect.js";
 import { sortFixtures } from "./normalize.js";
 import { mergeResults } from "./results.js";
 import { diff } from "./diff.js";
@@ -39,9 +39,10 @@ export function runFaiCheck({
     // the same slot. Nothing here needs the id to be a particular type.
     const found = matches?.[team.id];
     if (!found) continue;
-    for (const match of found.future ?? []) {
-      fixtures.push(faiFixture(match, team.id, facilities[match.id]));
-    }
+    const { fixtures: teamFixtures, errors: fixtureErrors } =
+      faiFixtures(found.future, team.id, facilities);
+    fixtures.push(...teamFixtures);
+    errors.push(...fixtureErrors);
     const { results, errors: resultErrors } = faiResults(found.past, team.id, today);
     rawResults.push(...results);
     errors.push(...resultErrors);

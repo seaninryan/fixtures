@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { faiFixture, faiResult, faiResults } from "../src/lib/faiConnect.js";
+import { faiFixture, faiFixtures, faiResult, faiResults } from "../src/lib/faiConnect.js";
 import { FAI_JUNIORS_TEAM_ID, FAI_JUNIORS_PAST_COUNT, FAI_JUNIORS_PAST_IN_SEASON } from "./fixtures/meta.js";
 
 const load = (name) =>
@@ -74,6 +74,26 @@ describe("faiFixture", () => {
     const f = faiFixture(byId(52005175), FAI_JUNIORS_TEAM_ID, null);
     expect(f.venue).toBe("");
   });
+
+  it("does not turn a null kick-off into 1970", () => {
+    const broken = { ...byId(52005172), dateTimeUTC: null };
+    expect(faiFixture(broken, FAI_JUNIORS_TEAM_ID).date).toBeNull();
+  });
+
+  it("does not throw on a missing kick-off - it costs that fixture, not the scan", () => {
+    const broken = { ...byId(52005172), dateTimeUTC: undefined };
+    expect(() => faiFixture(broken, FAI_JUNIORS_TEAM_ID)).not.toThrow();
+  });
+});
+
+describe("faiFixtures", () => {
+  it("drops an unusable kick-off with an error, keeping the rest", () => {
+    const broken = [{ ...byId(52005172), dateTimeUTC: null }, byId(52005175)];
+    const { fixtures, errors } = faiFixtures(broken, FAI_JUNIORS_TEAM_ID, {}, {});
+    expect(fixtures).toHaveLength(1);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/fai:52005172/);
+  });
 });
 
 describe("faiResult", () => {
@@ -127,6 +147,14 @@ describe("faiResults", () => {
     const then = faiResults(past, FAI_JUNIORS_TEAM_ID, "2025-03-01").results;
     expect(now.some((r) => r.date === "2024-09-22")).toBe(false);
     expect(then.some((r) => r.date === "2024-09-22")).toBe(true);
+  });
+
+  it("drops a past match with an unusable kick-off rather than dating it 1970", () => {
+    const broken = [{ ...pastById(52005166), dateTimeUTC: null }];
+    const { results, errors } = faiResults(broken, FAI_JUNIORS_TEAM_ID, "2026-09-17");
+    expect(results).toHaveLength(0);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/unusable kick-off/);
   });
 
   it("skips a match with no score rather than inventing a draw", () => {
