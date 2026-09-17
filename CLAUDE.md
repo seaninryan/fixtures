@@ -42,7 +42,8 @@ ballislife). The cron performs no OAuth and never will - see the spec.
 workflow's `GITHUB_TOKEN` only writes to its own repo, so running it there needs no
 long-lived token. It checks this repo out read-only for the code. `scripts/check.mjs`
 is here, the workflow that calls it is there: changing the script's env contract
-(`DATA_DIR`, `FIXTURES_HTML_FILE`, `ALLOW_SHRINK`) means editing the other repo.
+(`DATA_DIR`, `FIXTURES_HTML_FILE`, `ALLOW_SHRINK`, `FAI_CONNECT_API_KEY`,
+`FAI_CONNECT_CLUB_ID`, `FAI_MATCHES_FILE`) means editing the other repo.
 
 **There are two data sources.** Galway FA's WordPress endpoint (`parse.js`, scraped
 HTML) and FAI Connect's COMET API (`faiConnect.js`, JSON). The club is migrating league
@@ -55,7 +56,7 @@ merges them. The FAI key is a credential and lives only in the data repo's secre
 ## Architecture
 
 **Pure logic in `src/lib/`, thin components in `src/components/`.** Only
-`fetchFixtures.js` and `scripts/check.mjs` touch the outside world. Every rule
+`fetchFixtures.js`, `fetchFaiConnect.js` and `scripts/check.mjs` touch the outside world. Every rule
 lives in a unit-tested pure function; new derivations belong in lib with tests.
 
 - `runCheck.js` — the whole pipeline minus I/O. The safety rules live here.
@@ -149,13 +150,37 @@ offline runs.
   from the fixture list it is handed, so a per-source report will drop the A/B letter
   the day a youth squad migrates while its sibling is still on Galway FA.
 
-## The data source
+## The data sources
+
+### Galway FA
 
 The club page is a shell; fixtures come from `admin-ajax.php`. CloudFront **403s a
 default client User-Agent** — a browser UA plus a Referer is required. The endpoint
 sends no CORS headers, so it can never be called from the browser. Every fixture
 carries its fields as `data-` attributes; `data-fid` and our `team_id` come from
 the markup inside the block. See the spec for the full account.
+
+### FAI Connect (Analyticom COMET)
+
+`https://api-fai.analyticom.de`, club **10671**. Three endpoints: the club's teams, a
+team's paginated `future`/`past` matches, and an undocumented per-match detail call that
+is the only source of a venue. Facts established by probing, each one load-bearing:
+
+- The `api_key` header is **required** - without it, 403.
+- There is a **User-Agent denylist**: `Python-urllib/3.12` gets 403 while curl, okhttp,
+  `node` and browser UAs get 200. Always send an explicit UA. Same class of trap as
+  Galway's CloudFront rule.
+- `size` is the **total**, not the page length, so a short page is detectable - and
+  `fetchMatches` throws rather than returning a truncated list.
+- The trailing `/1` in the matches path is **inert** (`/0`, `/2`, `/3` are identical).
+  It is sent because the app sends it.
+- `past` returns **two years** of history, and some competitions carry no parent season
+  at all - which is why the season cutoff is by date and never by competition name.
+- Of 25 teams returned, most are stale entries with no matches. A team with no matches
+  is skipped, not reported: that is the ordinary case during the migration.
+
+Opponent names from COMET are dirty and land verbatim in the announcement
+("Merlin Woods Reserve 2425"). Upstream data, not a bug here.
 
 ## Testing conventions
 
