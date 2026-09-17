@@ -1,0 +1,494 @@
+{
+ "result": [
+  {
+   "id": 52005166,
+   "homeTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "awayTeam": {
+    "id": 32008,
+    "name": "Mervue United FC Jun A",
+    "picture": "2377ce29-0160-41d0-8867-11339c589e3f",
+    "place": "Mervue",
+    "parent": {
+     "id": 11425,
+     "name": "Mervue United FC",
+     "picture": "2377ce29-0160-41d0-8867-11339c589e3f",
+     "place": "Mervue"
+    }
+   },
+   "homeTeamResult": {
+    "current": 0,
+    "regular": 0,
+    "half": 0
+   },
+   "awayTeamResult": {
+    "current": 4,
+    "regular": 4,
+    "half": 2
+   },
+   "liveStatus": "PLAYED",
+   "dateTimeUTC": 1789218000000,
+   "round": "2",
+   "roundOrder": 2,
+   "matchNumber": 8,
+   "competition": {
+    "id": 51291014,
+    "name": "Western Hygiene Supplies Brod Trill Mens Premier League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "result": "L",
+   "team": "H",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 52005161,
+   "homeTeam": {
+    "id": 51693,
+    "name": "Salthill Devon FC A",
+    "picture": "65711dff-bd58-4a45-bb28-2c5497f5d6a3",
+    "place": "Tonabrocky",
+    "parent": {
+     "id": 11807,
+     "name": "Salthill Devon FC",
+     "picture": "65711dff-bd58-4a45-bb28-2c5497f5d6a3",
+     "place": "Tonabrocky"
+    }
+   },
+   "awayTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "homeTeamResult": {
+    "current": 8,
+    "regular": 8,
+    "half": 4
+   },
+   "awayTeamResult": {
+    "current": 1,
+    "regular": 1,
+    "half": 1
+   },
+   "liveStatus": "PLAYED",
+   "dateTimeUTC": 1788613200000,
+   "round": "1",
+   "roundOrder": 1,
+   "matchNumber": 3,
+   "competition": {
+    "id": 51291014,
+    "name": "Western Hygiene Supplies Brod Trill Mens Premier League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "result": "L",
+   "team": "A",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 45360475,
+   "homeTeam": {
+    "id": 77467,
+    "name": "Maree/Oranmore FC Junior Premier",
+    "picture": "636f2555-64ef-45c2-bf4f-45cfb28fec09",
+    "place": "Oranmore",
+    "parent": {
+     "id": 11382,
+     "name": "Maree/Oranmore FC",
+     "picture": "636f2555-64ef-45c2-bf4f-45cfb28fec09",
+     "place": "Oranmore"
+    }
+   },
+   "awayTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "homeTeamResult": {
+    "current": 8,
+    "regular": 8,
+    "half": 2
+   },
+   "awayTeamResult": {
+    "current": 2,
+    "regular": 2,
+    "half": 1
+   },
+   "liveStatus": "PLAYED",
+   "dateTimeUTC": 1772897400000,
+   "round": "1",
+   "roundOrder": 1,
+   "matchNumber": 1,
+   "competition": {
+    "id": 45360042,
+    "name": "FAI Junior Cup 2026 - Galway",
+    "parentId": 42601110,
+    "parentName": "FAI Junior Cup 2026",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "result": "L",
+   "team": "A",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 41034376,
+   "homeTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "awayTeam": {
+    "id": 14663,
+    "name": "Ballyglass F.C. A",
+    "picture": "3c97fb84-cdd0-4d39-b324-60e8c9ebcc82",
+    "place": "Ballyglass",
+    "parent": {
+     "id": 10162,
+     "name": "Ballyglass F.C.",
+     "picture": "3c97fb84-cdd0-4d39-b324-60e8c9ebcc82",
+     "place": "Ballyglass"
+    }
+   },
+   "homeTeamResult": {
+    "current": 0,
+    "regular": 0
+   },
+   "awayTeamResult": {
+    "current": 2,
+    "regular": 2
+   },
+   "liveStatus": "PLAYED",
+   "dateTimeUTC": 1762092000000,
+   "round": "2",
+   "roundOrder": 2,
+   "matchNumber": 16,
+   "competition": {
+    "id": 39724640,
+    "name": "Mens Connacht Cup Final 2026",
+    "picture": "6a738824-da39-4dcc-bc70-8f721ad0719b",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "result": "L",
+   "team": "H",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 27954212,
+   "homeTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "awayTeam": {
+    "id": 19513,
+    "name": "Ballisodare United FC",
+    "picture": "de4e9406-419e-436e-b5c5-6e8a68c0eb2a",
+    "place": "BALLISODARE",
+    "parent": {
+     "id": 10144,
+     "name": "Ballisodare United FC",
+     "picture": "de4e9406-419e-436e-b5c5-6e8a68c0eb2a",
+     "place": "BALLISODARE"
+    }
+   },
+   "homeTeamResult": {
+    "current": 1,
+    "regular": 1,
+    "half": 1
+   },
+   "awayTeamResult": {
+    "current": 3,
+    "regular": 3,
+    "half": 2
+   },
+   "liveStatus": "PLAYED",
+   "dateTimeUTC": 1736690400000,
+   "round": "1/16F",
+   "roundOrder": 2,
+   "matchNumber": 18,
+   "competition": {
+    "id": 27952542,
+    "name": "Connacht Cup 24/25",
+    "picture": "5558aa32-801e-4e70-bcd4-0fbbfe078ca7",
+    "showStandings": false,
+    "showGoalDifference": false,
+    "showStats": true
+   },
+   "result": "L",
+   "team": "H",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 30014815,
+   "homeTeam": {
+    "id": 59465,
+    "name": "Ballyoulster United Men LSL",
+    "picture": "a0a40af3-8ecd-497d-a033-a7fe47e614f5",
+    "place": "Celbridge",
+    "parent": {
+     "id": 10193,
+     "name": "Ballyoulster United AFC",
+     "picture": "a0a40af3-8ecd-497d-a033-a7fe47e614f5",
+     "place": "Celbridge"
+    }
+   },
+   "awayTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "homeTeamResult": {
+    "current": 2,
+    "regular": 2,
+    "half": 1
+   },
+   "awayTeamResult": {
+    "current": 0,
+    "regular": 0,
+    "half": 0
+   },
+   "liveStatus": "PLAYED",
+   "dateTimeUTC": 1733061600000,
+   "round": "1",
+   "roundOrder": 1,
+   "matchNumber": 14,
+   "competition": {
+    "id": 29648848,
+    "name": "FAI Junior Cup 24/25 - National",
+    "parentId": 19857147,
+    "parentName": "FAI Junior Cup 24/25",
+    "showStandings": false,
+    "showGoalDifference": false,
+    "showStats": true
+   },
+   "result": "L",
+   "team": "A",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 28997342,
+   "homeTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "awayTeam": {
+    "id": 57690,
+    "name": "Knocknacarra FC Senior Mens 24/25 **",
+    "picture": "2aeed796-dd92-42f2-b829-62a5914e3f79",
+    "place": "Galway",
+    "parent": {
+     "id": 11253,
+     "name": "Knocknacarra FC",
+     "picture": "2aeed796-dd92-42f2-b829-62a5914e3f79",
+     "place": "Galway"
+    }
+   },
+   "homeTeamResult": {
+    "current": 0,
+    "regular": 0,
+    "half": 0
+   },
+   "awayTeamResult": {
+    "current": 0,
+    "regular": 0,
+    "half": 0
+   },
+   "liveStatus": "PLAYED",
+   "dateTimeUTC": 1730631600000,
+   "round": "3",
+   "roundOrder": 3,
+   "matchNumber": 19,
+   "competition": {
+    "id": 25488536,
+    "name": "FAI Junior Cup 24/25  - Galway District League",
+    "parentId": 19857147,
+    "parentName": "FAI Junior Cup 24/25",
+    "showStandings": false,
+    "showGoalDifference": false,
+    "showStats": true
+   },
+   "result": "D",
+   "team": "H",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 27609861,
+   "homeTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "awayTeam": {
+    "id": 58764,
+    "name": "Cregmore/Claregalway FC - Adult Mens - Juniors",
+    "picture": "a8d17158-3206-446d-9292-6f76b2c05f46",
+    "place": "Claregalway",
+    "parent": {
+     "id": 10675,
+     "name": "Cregmore/Claregalway FC",
+     "picture": "a8d17158-3206-446d-9292-6f76b2c05f46",
+     "place": "Claregalway"
+    }
+   },
+   "homeTeamResult": {
+    "current": 0,
+    "regular": 0,
+    "half": 0
+   },
+   "awayTeamResult": {
+    "current": 0,
+    "regular": 0,
+    "half": 0
+   },
+   "liveStatus": "PLAYED",
+   "dateTimeUTC": 1728813600000,
+   "round": "2",
+   "roundOrder": 2,
+   "matchNumber": 17,
+   "competition": {
+    "id": 25488536,
+    "name": "FAI Junior Cup 24/25  - Galway District League",
+    "parentId": 19857147,
+    "parentName": "FAI Junior Cup 24/25",
+    "showStandings": false,
+    "showGoalDifference": false,
+    "showStats": true
+   },
+   "result": "D",
+   "team": "H",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 25601931,
+   "homeTeam": {
+    "id": 50986,
+    "name": "Corrib Celtic Girls U11 A",
+    "picture": "bc02bca6-8a1a-42e2-b6f3-bcad6cf91796",
+    "place": "Annaghdown",
+    "parent": {
+     "id": 10630,
+     "name": "Corrib Celtic",
+     "picture": "bc02bca6-8a1a-42e2-b6f3-bcad6cf91796",
+     "place": "Annaghdown"
+    }
+   },
+   "awayTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "homeTeamResult": {
+    "current": 2,
+    "regular": 2
+   },
+   "awayTeamResult": {
+    "current": 4,
+    "regular": 4
+   },
+   "liveStatus": "PLAYED",
+   "dateTimeUTC": 1726999200000,
+   "round": "1",
+   "roundOrder": 1,
+   "matchNumber": 3,
+   "competition": {
+    "id": 25488536,
+    "name": "FAI Junior Cup 24/25  - Galway District League",
+    "parentId": 19857147,
+    "parentName": "FAI Junior Cup 24/25",
+    "showStandings": false,
+    "showGoalDifference": false,
+    "showStats": true
+   },
+   "result": "W",
+   "team": "A",
+   "showEvents": true,
+   "allowDetail": true
+  }
+ ],
+ "size": 9
+}

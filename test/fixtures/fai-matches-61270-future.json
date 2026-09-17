@@ -1,0 +1,225 @@
+{
+ "result": [
+  {
+   "id": 52005172,
+   "homeTeam": {
+    "id": 35629,
+    "name": "Renmore FC",
+    "picture": "05bd57ab-5c13-405e-9f40-f0cdbc04af8e",
+    "place": "Galway",
+    "parent": {
+     "id": 11743,
+     "name": "Renmore AFC",
+     "picture": "05bd57ab-5c13-405e-9f40-f0cdbc04af8e",
+     "place": "Galway"
+    }
+   },
+   "awayTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "liveStatus": "SCHEDULED",
+   "dateTimeUTC": 1789822800000,
+   "round": "3",
+   "roundOrder": 3,
+   "matchNumber": 14,
+   "competition": {
+    "id": 51291014,
+    "name": "Western Hygiene Supplies Brod Trill Mens Premier League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "team": "A",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 52005175,
+   "homeTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "awayTeam": {
+    "id": 62920,
+    "name": "Moyne Villa Junior A",
+    "picture": "3e220f76-29fc-47a6-a0f3-d71ac767c9fb",
+    "place": "Headford",
+    "parent": {
+     "id": 11490,
+     "name": "Moyne Villa FC",
+     "picture": "3e220f76-29fc-47a6-a0f3-d71ac767c9fb",
+     "place": "Headford"
+    }
+   },
+   "liveStatus": "SCHEDULED",
+   "dateTimeUTC": 1790427600000,
+   "round": "4",
+   "roundOrder": 4,
+   "matchNumber": 17,
+   "competition": {
+    "id": 51291014,
+    "name": "Western Hygiene Supplies Brod Trill Mens Premier League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "team": "H",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 52005183,
+   "homeTeam": {
+    "id": 40345,
+    "name": "Galway Hibernians",
+    "picture": "848e8eac-fcbd-4b53-be12-e0c417f4b56a",
+    "place": "Bohermore",
+    "parent": {
+     "id": 10961,
+     "name": "Galway Hibernians",
+     "picture": "848e8eac-fcbd-4b53-be12-e0c417f4b56a",
+     "place": "Bohermore"
+    }
+   },
+   "awayTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "liveStatus": "POSTPONED",
+   "dateTimeUTC": 1791032400000,
+   "round": "5",
+   "roundOrder": 5,
+   "matchNumber": 25,
+   "competition": {
+    "id": 51291014,
+    "name": "Western Hygiene Supplies Brod Trill Mens Premier League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "team": "A",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 52005184,
+   "homeTeam": {
+    "id": 50603,
+    "name": "St Bernards Junior",
+    "picture": "d1e9eca5-c192-4a70-ba31-8b3d88947af1",
+    "place": "CO GALWAY",
+    "parent": {
+     "id": 11922,
+     "name": "St Bernards FC",
+     "picture": "d1e9eca5-c192-4a70-ba31-8b3d88947af1",
+     "place": "CO GALWAY"
+    }
+   },
+   "awayTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "liveStatus": "SCHEDULED",
+   "dateTimeUTC": 1791637200000,
+   "round": "6",
+   "roundOrder": 6,
+   "matchNumber": 26,
+   "competition": {
+    "id": 51291014,
+    "name": "Western Hygiene Supplies Brod Trill Mens Premier League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "team": "A",
+   "showEvents": true,
+   "allowDetail": true
+  },
+  {
+   "id": 52005193,
+   "homeTeam": {
+    "id": 61270,
+    "name": "Craughwell United Juniors",
+    "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+    "place": "Craughwell",
+    "parent": {
+     "id": 10671,
+     "name": "Craughwell United",
+     "picture": "75c30823-8327-4ab4-afa6-07dbfe2bc5a1",
+     "place": "Craughwell"
+    }
+   },
+   "awayTeam": {
+    "id": 53927,
+    "name": "Athenry FC Men\u2019s Junior A",
+    "picture": "ab088f22-e1dc-4f37-923b-addf0ebdab87",
+    "place": "Atehnry",
+    "parent": {
+     "id": 10090,
+     "name": "Athenry FC",
+     "picture": "ab088f22-e1dc-4f37-923b-addf0ebdab87",
+     "place": "Atehnry"
+    }
+   },
+   "liveStatus": "SCHEDULED",
+   "dateTimeUTC": 1792317600000,
+   "round": "7",
+   "roundOrder": 7,
+   "matchNumber": 35,
+   "competition": {
+    "id": 51291014,
+    "name": "Western Hygiene Supplies Brod Trill Mens Premier League",
+    "parentId": 51290250,
+    "parentName": "Galway Football Association 26/27",
+    "showStandings": true,
+    "showGoalDifference": true,
+    "showStats": true
+   },
+   "team": "H",
+   "showEvents": true,
+   "allowDetail": true
+  }
+ ],
+ "size": 5
+}
