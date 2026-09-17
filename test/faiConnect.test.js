@@ -75,6 +75,11 @@ describe("faiFixture", () => {
     expect(f.venue).toBe("");
   });
 
+  it("derives isHome from the ids, not the team letter", () => {
+    const lying = { ...byId(52005175), team: "A" };  // ids say home
+    expect(faiFixture(lying, FAI_JUNIORS_TEAM_ID).isHome).toBe(true);
+  });
+
   it("does not turn a null kick-off into 1970", () => {
     const broken = { ...byId(52005172), dateTimeUTC: null };
     expect(faiFixture(broken, FAI_JUNIORS_TEAM_ID).date).toBeNull();
@@ -87,6 +92,20 @@ describe("faiFixture", () => {
 });
 
 describe("faiFixtures", () => {
+  it("drops a fixture whose team letter and ids disagree", () => {
+    const lying = { ...byId(52005175), team: "A" };
+    const { fixtures, errors } = faiFixtures([lying], FAI_JUNIORS_TEAM_ID, {}, {});
+    expect(fixtures).toHaveLength(0);
+    expect(errors[0]).toMatch(/ids say home/);
+  });
+
+  it("drops a match that involves neither of our sides", () => {
+    const wrong = { ...byId(52005175), homeTeam: { id: 1, name: "A" }, awayTeam: { id: 2, name: "B" } };
+    const { fixtures, errors } = faiFixtures([wrong], FAI_JUNIORS_TEAM_ID, {}, {});
+    expect(fixtures).toHaveLength(0);
+    expect(errors).toHaveLength(1);
+  });
+
   it("drops an unusable kick-off with an error, keeping the rest", () => {
     const broken = [{ ...byId(52005172), dateTimeUTC: null }, byId(52005175)];
     const { fixtures, errors } = faiFixtures(broken, FAI_JUNIORS_TEAM_ID, {}, {});

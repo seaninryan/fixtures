@@ -5,10 +5,30 @@ import { faiId } from "./source.js";
 import { sortResults } from "./normalize.js";
 import { seasonPredicate } from "./window.js";
 
+// Which side WE were, derived from the team IDS and not from `match.team`.
+//
 // `match.team` is "H" or "A" RELATIVE TO THE REQUESTED TEAM, which is why every function
-// here takes the team id it was fetched for. It is not derivable from the match alone in
-// a derby between two of the club's own sides.
-const isHomeSide = (match) => match.team === "H";
+// here takes the team id it was fetched for. But it is a single character, and if it is
+// ever absent, lowercased or simply wrong then `ours` silently becomes the OPPONENT and
+// every score publishes backwards with nothing to notice. The ids say the same thing
+// unambiguously - including in a derby between two of the club's own sides, which is the
+// case that made `match.team` necessary in the first place. The design called for a
+// cross-check; this makes the ids authoritative and `match.team` the thing being checked.
+export function homeSide(match, teamId) {
+  const ours = String(teamId);
+  if (String(match?.homeTeam?.id ?? "") === ours) return true;
+  if (String(match?.awayTeam?.id ?? "") === ours) return false;
+  return null; // neither side is us - the caller must treat this as unusable
+}
+
+// Disagreement means our assumption about one of the two fields is wrong, and we do not
+// know which. Reported, never silently resolved.
+export function sideDisagreement(match, teamId) {
+  const byId = homeSide(match, teamId);
+  if (byId === null || match?.team == null) return null;
+  const byField = match.team === "H";
+  return byId === byField ? null : `team="${match.team}" but ids say ${byId ? "home" : "away"}`;
+}
 
 // A status worth telling someone about. SCHEDULED is the ordinary case and PLAYED is
 // already visible as a result, so neither is news; anything else - POSTPONED today, and
@@ -36,7 +56,9 @@ const kickOffMs = (value) => (Number.isFinite(value) ? value : null);
 // answer is never rendered. One live fixture returns a null facility, so absence is a real
 // path, not a defensive flourish.
 export function faiFixture(match, teamId, facility) {
-  const isHome = isHomeSide(match);
+  // null (neither side is us) reads as `false` here; the collector rejects that case
+  // before it can be published, and this function is not the place to decide.
+  const isHome = homeSide(match, teamId) === true;
   const ours = isHome ? match.homeTeam : match.awayTeam;
   const opponent = isHome ? match.awayTeam : match.homeTeam;
   // clubNow returns the club's local date and time as STRINGS - this is the only new place
@@ -73,6 +95,18 @@ export function faiFixtures(matches, teamId, facilities = {}, previousVenues = {
   const errors = [];
   for (const match of matches ?? []) {
     const f = faiFixture(match, teamId, facilities?.[match?.id], previousVenues?.[faiId(match?.id)]);
+    // Both of these are "never silently wrong" cases: publishing a fixture we cannot
+    // place ourselves in, or one whose two statements of which side we were disagree,
+    // means printing the wrong team as ours. Dropping it is the loud answer.
+    if (homeSide(match, teamId) === null) {
+      errors.push(`${f.fid}: neither side is team ${teamId}`);
+      continue;
+    }
+    const disagreement = sideDisagreement(match, teamId);
+    if (disagreement) {
+      errors.push(`${f.fid}: ${disagreement}`);
+      continue;
+    }
     if (f.date === null) {
       errors.push(`${f.fid}: unusable kick-off "${match?.dateTimeUTC}"`);
       continue;
@@ -88,7 +122,7 @@ export function faiFixtures(matches, teamId, facilities = {}, previousVenues = {
 const scoreOf = (side) => (typeof side?.current === "number" ? side.current : null);
 
 export function faiResult(match, teamId) {
-  const isHome = isHomeSide(match);
+  const isHome = homeSide(match, teamId) === true;
   const ours = isHome ? match.homeTeam : match.awayTeam;
   const opponent = isHome ? match.awayTeam : match.homeTeam;
   const ms = kickOffMs(match?.dateTimeUTC);
@@ -131,6 +165,17 @@ export function faiResults(matches, teamId, today) {
       continue;
     }
     if (!inSeason(r)) continue;
+    // After the season filter, so two years of archived matches cannot fill the log with
+    // complaints about games this season never cared about.
+    if (homeSide(match, teamId) === null) {
+      errors.push(`${r.fid}: neither side is team ${teamId}`);
+      continue;
+    }
+    const disagreement = sideDisagreement(match, teamId);
+    if (disagreement) {
+      errors.push(`${r.fid}: ${disagreement}`);
+      continue;
+    }
     if (r.ourScore === null || r.theirScore === null) {
       errors.push(`${r.fid}: no score on a past match (${r.ourTeam} v ${r.opponent})`);
       continue;
