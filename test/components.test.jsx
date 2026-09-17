@@ -379,3 +379,16 @@ describe("both sources together", () => {
     expect(html).toContain("Renmore FC");
   });
 });
+
+describe("SquadsTab editing help", () => {
+  it("explains the edit loop and that the cache delay is not a failed save", () => {
+    const html = renderToStaticMarkup(
+      <SquadsTab fixtures={fixtures} config={config} onChange={() => {}} />,
+    );
+    // The three things someone actually gets wrong: that nothing saves by itself, that a
+    // typed label survives the daily run, and that a slow reload is not a lost edit.
+    expect(html).toContain("cannot write to the data");
+    expect(html).toContain("never overwrites");
+    expect(html).toContain("not a failed save");
+  });
+});
