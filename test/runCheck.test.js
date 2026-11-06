@@ -480,4 +480,36 @@ describe("results", () => {
     expect(() => runCheck({ ...base, html: "<html>nothing</html>", previous: null, previousResults: null }))
       .toThrow();
   });
+
+  describe("awaiting", () => {
+    // A played game the feed has dropped. Its fid is not in the capture, so it can only
+    // reach `awaiting` through the previous snapshot.
+    const played = () => ({ ...first.snapshot.fixtures[0], fid: "999999", date: "2026-08-24" });
+
+    it("carries a played, unscored fixture that left the feed", () => {
+      const previous = prevWith((fs) => [...fs, played()]);
+      const out = runCheck({ html, previous, config: first.config, now: NOW, today: TODAY });
+      expect(out.snapshot.awaiting.map((f) => f.fid)).toEqual(["999999"]);
+      // Not a cancellation - diff.js still ignores a past-dated departure.
+      expect(out.changes).toEqual([]);
+    });
+
+    it("drops it once the results store has it", () => {
+      const previous = { ...first.snapshot, awaiting: [played()] };
+      const previousResults = { version: 1, results: [{ fid: "999999", date: "2026-08-24" }] };
+      const out = runCheck({ html, previous, previousResults, config: first.config, now: NOW, today: TODAY });
+      expect(out.snapshot.awaiting).toEqual([]);
+    });
+
+    it("is empty on a first run", () => {
+      expect(first.snapshot.awaiting).toEqual([]);
+    });
+
+    it("is not counted by the shrink guard", () => {
+      const many = Array.from({ length: 500 }, (_, i) => ({ ...played(), fid: `a${i}` }));
+      const previous = { ...first.snapshot, awaiting: many };
+      expect(() => runCheck({ html, previous, config: first.config, now: NOW, today: TODAY }))
+        .not.toThrow();
+    });
+  });
 });

@@ -6,6 +6,7 @@
 import { parse } from "./parse.js";
 import { normalizeAll, normalizeAllResults } from "./normalize.js";
 import { mergeResults } from "./results.js";
+import { nextAwaiting } from "./awaiting.js";
 import { diff } from "./diff.js";
 import { seedConfig, resolveTeams } from "./teams.js";
 import { changeReport } from "./changeReport.js";
@@ -53,6 +54,9 @@ export function runCheck({ html, previous, previousResults, config, now, today, 
   const { results: parsedResults, errors: resultErrors } = normalizeAllResults(parsed.results);
   errors.push(...resultErrors);
   const results = mergeResults(previousResults, parsedResults, now);
+  // After the guards (a bad payload writes nothing) and after the merge (a result that
+  // arrived in THIS run clears its game). Keyed on fid against this source's own store.
+  snapshot.awaiting = nextAwaiting({ previous, fixtures, results: results.results, today });
 
   const nextConfig = seedConfig(fixtures, config);
   const { unknown } = resolveTeams(fixtures, nextConfig);
