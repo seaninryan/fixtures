@@ -5,6 +5,7 @@ import ResultsTab from "../src/components/ResultsTab.jsx";
 import ChangesTab from "../src/components/ChangesTab.jsx";
 import SquadsTab from "../src/components/SquadsTab.jsx";
 import FormTab from "../src/components/FormTab.jsx";
+import GraphicsTab from "../src/components/GraphicsTab.jsx";
 import { roundup } from "../src/lib/results.js";
 
 const config = { version: 1, teams: { "235380": { label: "U14A Boys", color: "#1f6feb" } } };
@@ -390,5 +391,79 @@ describe("SquadsTab editing help", () => {
     expect(html).toContain("cannot write to the data");
     expect(html).toContain("never overwrites");
     expect(html).toContain("not a failed save");
+  });
+});
+
+describe("GraphicsTab", () => {
+  const now = { date: "2026-08-25", time: "10:00" };
+
+  it("renders a preview for fixtures in the window", () => {
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]} results={{ results: [] }}
+                   config={config} today="2026-08-25" now={now} />,
+    );
+    expect(html).toContain("<canvas");
+    expect(html).toContain("fixtures-2026-08-29-4x5.png");
+  });
+
+  it("lists rows with a Leave off control", () => {
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]} results={{ results: [] }}
+                   config={config} today="2026-08-25" now={now} />,
+    );
+    expect(html).toContain("U14A Boys");
+    expect(html).toContain("Leave off");
+  });
+
+  it("says so when the results could not be loaded", () => {
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]} results={null}
+                   config={config} today="2026-08-25" now={now} initialKind="Results" />,
+    );
+    expect(html).toContain("Could not load the results");
+  });
+
+  it("renders a results card and offers a played game for a hand-entered score", () => {
+    const played = { date: "2026-08-30", time: "10:00" };
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]}
+                   results={{ results: [{ ...fixtures[0], fid: "2", date: "2026-08-28", ourScore: 3, theirScore: 1 }] }}
+                   config={config} today="2026-08-30" now={played} initialKind="Results" />,
+    );
+    expect(html).toContain("results-2026-08-28-4x5.png");
+    expect(html).toContain("U14A Boys 3-1 St Bernards");
+    expect(html).toContain("U14A Boys v St Bernards — 2026-08-29");
+  });
+
+  // Nothing is drawn or downloadable until the card fonts are confirmed: a PNG in the
+  // fallback face, fitted to widths measured for another font, must never be saved.
+  it("keeps every download disabled until the fonts have loaded", () => {
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]} results={{ results: [] }}
+                   config={config} today="2026-08-25" now={now} />,
+    );
+    expect(html).toMatch(/<button class="primary" disabled="">Download all/);
+    expect(html).toMatch(/<button class="chip" disabled="">Download both shapes/);
+    expect(html).toMatch(/<button class="chip" disabled="">Download<\/button>/);
+  });
+
+  it("disables Add until both scores are numbers, so nothing fails silently", () => {
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]} results={{ results: [] }}
+                   config={config} today="2026-08-30" now={{ date: "2026-08-30", time: "10:00" }}
+                   initialKind="Results" />,
+    );
+    expect(html).not.toMatch(/<button class="chip">Add<\/button>/);
+    expect(html).toMatch(/<button class="chip" disabled="">Add<\/button>/);
+  });
+
+  it("offers a squad from the results in the dropdown even with no fixtures left", () => {
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={[]} awaiting={[]}
+                   results={{ results: [{ ...fixtures[0], fid: "3", date: "2026-08-28", ourScore: 1, theirScore: 0 }] }}
+                   config={config} today="2026-08-30" now={{ date: "2026-08-30", time: "10:00" }}
+                   initialKind="Results" />,
+    );
+    expect(html).toContain('<option value="235380">U14A Boys</option>');
   });
 });

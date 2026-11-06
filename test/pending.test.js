@@ -139,3 +139,22 @@ describe("pendingLines", () => {
     expect(lines[0].text).toContain("U14A Boys");
   });
 });
+
+describe("awaiting", () => {
+  it("includes a game that has left the feed but is awaiting a result", () => {
+    const out = pendingFixtures([], [], now, [fixture()]);
+    expect(out.map((f) => f.fid)).toEqual(["1"]);
+  });
+
+  it("dedupes on fid, preferring the snapshot's copy", () => {
+    const out = pendingFixtures([fixture({ opponent: "Colga" })], [], now,
+      [fixture({ opponent: "Stale" })]);
+    expect(out).toHaveLength(1);
+    expect(out[0].opponent).toBe("Colga");
+  });
+
+  it("labels an awaiting squad that has left the fixture list from config", () => {
+    const lines = pendingLines([], [], config, now, [fixture()]);
+    expect(lines[0].text).toMatch(/^U14A Boys @ Colga/);
+  });
+});

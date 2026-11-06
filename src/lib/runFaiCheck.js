@@ -6,6 +6,7 @@
 import { faiFixtures, faiResults } from "./faiConnect.js";
 import { sortFixtures } from "./normalize.js";
 import { mergeResults } from "./results.js";
+import { nextAwaiting } from "./awaiting.js";
 import { diff } from "./diff.js";
 import { seedConfig, resolveTeams } from "./teams.js";
 
@@ -106,6 +107,9 @@ export function runFaiCheck({
   }
 
   const results = mergeResults(previousResults, rawResults, now);
+  snapshot.awaiting = nextAwaiting({
+    previous, fixtures: snapshot.fixtures, results: results.results, today,
+  });
   const nextConfig = seedConfig(snapshot.fixtures, config);
   // `unknown` only - this module builds NO report. changeReport resolves squad labels, and
   // deriveLabels shows the A/B letter only when the club runs more than one side at that

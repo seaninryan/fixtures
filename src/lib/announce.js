@@ -35,19 +35,23 @@ export function shortDate(iso) {
   return `${DAYS_SHORT[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS_SHORT[d.getUTCMonth()]}`;
 }
 
+// v / @ already tells you whose ground it is. The ground is only worth naming when a
+// HOME game is somewhere other than home - the case that actually strands people.
+// Exported so the social cards apply the identical rule.
+export function venueNote(fixture) {
+  return fixture.isHome && fixture.venue && fixture.venue !== HOME_VENUE
+    ? ` (at ${fixture.venue})`
+    : "";
+}
+
 export function formatFixtureLine(fixture, labels) {
   const label = labels[fixture.teamId] ?? fixture.ourTeam;
   const versus = fixture.isHome ? "v" : "@";
-  // v / @ already tells you whose ground it is. The ground is only worth naming when a
-  // HOME game is somewhere other than home - the case that actually strands people.
-  const where = fixture.isHome && fixture.venue && fixture.venue !== HOME_VENUE
-    ? ` (at ${fixture.venue})`
-    : "";
   // No leading whitespace. This text gets pasted into WhatsApp and Facebook, where an
   // indented line can be treated as preformatted and is a nuisance to strip on a phone.
   // The site indents fixture lines in CSS instead, so the look survives and the copy is
   // clean. The gap between the time and the squad is alignment, not indentation.
-  return `${fixture.time}  ${label} ${versus} ${fixture.opponent}${where}`;
+  return `${fixture.time}  ${label} ${versus} ${fixture.opponent}${venueNote(fixture)}`;
 }
 
 // The announcement as a list of lines, one entry per rendered line.

@@ -1,27 +1,72 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AnnouncementTab from "./components/AnnouncementTab.jsx";
 import ResultsTab from "./components/ResultsTab.jsx";
+import GraphicsTab from "./components/GraphicsTab.jsx";
 import FormTab from "./components/FormTab.jsx";
 import ChangesTab from "./components/ChangesTab.jsx";
 import SquadsTab from "./components/SquadsTab.jsx";
-import { dataUrl, DEFAULT_DATA_URL, DATA_REPO } from "./lib/dataSource.js";
+import { dataUrl, DEFAULT_DATA_URL, DATA_REPO, LATEST_SNAPSHOT_COMMIT_URL, WORKFLOW_URL, rawBaseAt } from "./lib/dataSource.js";
 import {
   initAuth, signIn, signOut, getAccessToken, accountEmail,
 } from "./lib/googleAuth.js";
 import { isOwner } from "./lib/owner.js";
 import { clubNow } from "./lib/clock.js";
 
-const TABS = ["Fixtures", "Results", "Form", "Changes", "Squads"];
+const TABS = ["Fixtures", "Results", "Graphics", "Form", "Changes", "Squads"];
 
 // Set VITE_DATA_URL in a .env file to read a local copy instead of the data repo.
 const BASE = import.meta.env.VITE_DATA_URL || DEFAULT_DATA_URL;
 
 // no-cache, not no-store: the CDN copy is fine to revalidate against, we just must not
 // let the browser serve yesterday's snapshot out of its own cache without asking.
-async function loadJson(name) {
-  const res = await fetch(dataUrl(name, BASE), { cache: "no-cache" });
+async function loadJson(name, base) {
+  const res = await fetch(dataUrl(name, base), { cache: "no-cache" });
   if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
   return res.json();
+}
+
+// Newest commit touching latest.json, as an array of one. Carries the HTTP status on
+// the error so the poll can tell a rate limit from a blip.
+async function snapshotSha() {
+  const res = await fetch(LATEST_SNAPSHOT_COMMIT_URL, { cache: "no-store" });
+  if (!res.ok) {
+    const err = new Error(`snapshot commit: HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return (await res.json())[0].sha;
+}
+
+const isRateLimit = (err) => err?.status === 403 || err?.status === 429;
+
+const SYNC_POLL_MS = 15_000;
+const SYNC_POLL_LIMIT = 40; // ten minutes
+
+// The loaded files merged across both sources. Memoised in App on `state`, so a render
+// that changes nothing loaded (a sync poll tick, a tab switch) hands the tabs the same
+// arrays and the Graphics tab does not rebuild every card.
+function combine(state) {
+  const { snapshot, faiSnapshot } = state;
+  // Every tab sees BOTH sources. The files are separate; the app is not. Labels and
+  // colours come from the one shared teams.json, so a squad keeps its identity across the
+  // announcement, the round-up, the chart and the table whichever system it is on.
+  const fixtures = [...(snapshot.fixtures ?? []), ...(faiSnapshot?.fixtures ?? [])];
+  // Played games each scan is still waiting on a result for - see awaiting.js.
+  const awaiting = [...(snapshot.awaiting ?? []), ...(faiSnapshot?.awaiting ?? [])];
+
+  // ResultsTab and FormTab both read `results?.results ?? []` and both branch on
+  // `results === null`, so this must stay the WRAPPER shape and must keep null meaning
+  // "could not load" - which they render differently from "nobody played". A bare array
+  // here would silently break both tabs.
+  //
+  // null only when BOTH failed: a club whose squads have not migrated has no
+  // results-fai.json at all, and that must not blank the Results tab. The cost is that if
+  // exactly one of the two fails we show a partial store without saying so - accepted,
+  // because catch(() => null) cannot tell "absent" from "failed" across origins.
+  const results = state.results === null && state.faiResults === null
+    ? null
+    : { results: [...(state.results?.results ?? []), ...(state.faiResults?.results ?? [])] };
+  return { fixtures, awaiting, results };
 }
 
 export default function App() {
@@ -31,6 +76,43 @@ export default function App() {
   const [tab, setTab] = useState("Fixtures");
   const [state, setState] = useState({ status: "loading" });
   const [config, setConfig] = useState({ version: 1, teams: {} });
+  // Where the JSON is read from. BASE normally; a commit-pinned base after a sync.
+  const [base, setBase] = useState(BASE);
+  // "idle" | "waiting" | "timeout" | "failed" | "ratelimited"
+  const [sync, setSync] = useState("idle");
+  // A ref, not state: set synchronously so a double-click cannot start two pollers.
+  const syncing = useRef(false);
+
+  // Opens the workflow page, then watches the latest commit TOUCHING latest.json.
+  // latest.json changes every run (fetchedAt moves), while a teams.json edit or any
+  // other push to main does not touch it, so only a finished scan moves this sha.
+  const startSync = useCallback(async () => {
+    if (syncing.current) return;
+    syncing.current = true;
+    try {
+      window.open(WORKFLOW_URL, "_blank", "noopener");
+      let start;
+      try { start = await snapshotSha(); } catch (err) {
+        return setSync(isRateLimit(err) ? "ratelimited" : "failed");
+      }
+      setSync("waiting");
+      for (let i = 0; i < SYNC_POLL_LIMIT; i += 1) {
+        await new Promise((r) => setTimeout(r, SYNC_POLL_MS));
+        let sha;
+        try { sha = await snapshotSha(); } catch (err) {
+          if (isRateLimit(err)) return setSync("ratelimited");
+          continue;
+        }
+        if (sha !== start) {
+          setSync("idle");
+          return setBase(rawBaseAt(sha));
+        }
+      }
+      return setSync("timeout");
+    } finally {
+      syncing.current = false;
+    }
+  }, []);
 
   const check = useCallback(async (interactive) => {
     // Never a silent token request at load - see googleAuth.js: GIS may never answer
@@ -72,16 +154,17 @@ export default function App() {
         // the whole site.
         const [snapshot, history, loaded, results, faiSnapshot, faiHistory, faiResults] =
           await Promise.all([
-            loadJson("latest.json"),
-            loadJson("changes.json").catch(() => []),
-            loadJson("teams.json").catch(() => ({ version: 1, teams: {} })),
-            loadJson("results.json").catch(() => null),
-            loadJson("latest-fai.json").catch(() => ({ fixtures: [] })),
-            loadJson("changes-fai.json").catch(() => []),
-            loadJson("results-fai.json").catch(() => null),
+            loadJson("latest.json", base),
+            loadJson("changes.json", base).catch(() => []),
+            loadJson("teams.json", base).catch(() => ({ version: 1, teams: {} })),
+            loadJson("results.json", base).catch(() => null),
+            loadJson("latest-fai.json", base).catch(() => ({ fixtures: [] })),
+            loadJson("changes-fai.json", base).catch(() => []),
+            loadJson("results-fai.json", base).catch(() => null),
           ]);
         if (!live) return;
-        setConfig(loaded);
+        // A sync reload must not discard unsaved Squads-tab edits.
+        if (base === BASE) setConfig(loaded);
         setState({
           status: "ready", snapshot, history, results, faiSnapshot, faiHistory, faiResults,
         });
@@ -89,11 +172,19 @@ export default function App() {
         // The data is fetched across origins, so this is a real path: offline, a
         // rate-limited CDN, a data repo that is not public yet. Saying so beats a
         // spinner that never stops.
-        if (live) setState({ status: "failed", error: String(err?.message ?? err) });
+        if (!live) return;
+        // A failed sync reload keeps the data already on screen; only a first load
+        // has nothing to show and takes the error page.
+        setState((prev) => (prev.status === "ready" && base !== BASE
+          ? prev
+          : { status: "failed", error: String(err?.message ?? err) }));
+        if (base !== BASE) setSync("failed");
       }
     })();
     return () => { live = false; };
-  }, [gate]);
+  }, [gate, base]);
+
+  const combined = useMemo(() => (state.status === "ready" ? combine(state) : null), [state]);
 
   if (gate === "checking") {
     return <main className="wrap"><p className="dim">Loading…</p></main>;
@@ -141,23 +232,7 @@ export default function App() {
   const now = clubNow(new Date());
   const today = now.date;
 
-  // Every tab sees BOTH sources. The files are separate; the app is not. Labels and
-  // colours come from the one shared teams.json, so a squad keeps its identity across the
-  // announcement, the round-up, the chart and the table whichever system it is on.
-  const fixtures = [...(snapshot.fixtures ?? []), ...(faiSnapshot?.fixtures ?? [])];
-
-  // ResultsTab and FormTab both read `results?.results ?? []` and both branch on
-  // `results === null`, so this must stay the WRAPPER shape and must keep null meaning
-  // "could not load" - which they render differently from "nobody played". A bare array
-  // here would silently break both tabs.
-  //
-  // null only when BOTH failed: a club whose squads have not migrated has no
-  // results-fai.json at all, and that must not blank the Results tab. The cost is that if
-  // exactly one of the two fails we show a partial store without saying so - accepted,
-  // because catch(() => null) cannot tell "absent" from "failed" across origins.
-  const results = state.results === null && state.faiResults === null
-    ? null
-    : { results: [...(state.results?.results ?? []), ...(state.faiResults?.results ?? [])] };
+  const { fixtures, awaiting, results } = combined;
 
   const history = [...(state.history ?? []), ...(state.faiHistory ?? [])]
     .sort((a, b) => String(b.checkedAt).localeCompare(String(a.checkedAt)));
@@ -181,15 +256,27 @@ export default function App() {
       </div>
       {tab === "Fixtures" && <AnnouncementTab fixtures={fixtures} config={config} today={today} />}
       {tab === "Results" && (
-        <ResultsTab results={results} fixtures={fixtures} config={config}
+        <ResultsTab results={results} fixtures={fixtures} awaiting={awaiting} config={config}
                     today={today} now={now} />
+      )}
+      {tab === "Graphics" && (
+        <GraphicsTab fixtures={fixtures} awaiting={awaiting} results={results}
+                     config={config} today={today} now={now} />
       )}
       {tab === "Form" && (
         <FormTab results={results} fixtures={fixtures} config={config} today={today} />
       )}
       {tab === "Changes" && <ChangesTab history={history} fixtures={fixtures} config={config} />}
       {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} onChange={setConfig} />}
-      <footer className="dim">Updated {updated?.slice(0, 10)}</footer>
+      <footer className="dim row">
+        <span>Updated {updated?.slice(0, 10)}</span>
+        <button className="chip" onClick={startSync} disabled={sync === "waiting"}>
+          {sync === "waiting" ? "Waiting for the scan…" : "Sync now"}
+        </button>
+        {sync === "timeout" && <span>No new data yet — the run may still be going. Reload later.</span>}
+        {sync === "ratelimited" && <span>Rate-limited by GitHub — try again in a few minutes.</span>}
+        {sync === "failed" && <span>Could not reach GitHub to watch for the run, or to load its data.</span>}
+      </footer>
     </main>
   );
 }

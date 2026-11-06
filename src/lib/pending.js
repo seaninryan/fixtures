@@ -7,18 +7,17 @@
 // Fixtures tab while having no result to show under Results. That hole is about 16 hours
 // wide for an evening kick-off, and this fills it.
 //
-// What this deliberately does NOT cover: once a run happens after the game the fixture
-// leaves the snapshot too, and if the league still has not published, the game vanishes
-// again. Only a persisted store keyed off diff.js's disappearance branch fixes that, and
-// the spec defers it - the live data has no instance of it.
+// Once a run happens after the game, the fixture leaves the snapshot. The scan now
+// carries such games in `snapshot.awaiting` (see awaiting.js) until their result lands,
+// and the caller passes that list here as `awaiting`.
 import { resultWindowRange } from "./window.js";
-import { resolveTeams } from "./teams.js";
+import { resolveTeams, fillLabelGaps } from "./teams.js";
 import { squadColor } from "./squadColors.js";
 import { shortDate } from "./announce.js";
 
-// How far back a pending game is still worth showing. The snapshot only holds what the
-// league still lists, so this bounds the one failure mode that outlives a run: a fixture
-// stranded in the feed with a past date would otherwise sit in the list for months.
+// How far back a pending game is still worth showing. The snapshot holds what the league
+// still lists and `awaiting` holds played games the scan carries forward; this bounds a
+// fixture stranded with a past date. Must agree with AWAITING_DAYS in awaiting.js.
 const PENDING_WINDOW = "Last 14 days";
 
 const HH_MM = /^\d{2}:\d{2}$/;
@@ -36,12 +35,16 @@ export function hasKickedOff(fixture, now) {
 }
 
 // `now` is {date, time} from clock.js - the club's local clock, not UTC.
-export function pendingFixtures(fixtures, results, now) {
+// `awaiting` is the snapshots' carried list. The snapshot's copy of a fid wins: it is
+// the league's current word on that game.
+export function pendingFixtures(fixtures, results, now, awaiting = []) {
   // Identity is fid, never a name or a date: a result for another game on the same day
   // must not clear this one.
   const scored = new Set((results ?? []).map((r) => r.fid));
   const floor = resultWindowRange(PENDING_WINDOW, now.date).from;
-  return (fixtures ?? [])
+  const byFid = new Map();
+  for (const f of [...(awaiting ?? []), ...(fixtures ?? [])]) byFid.set(f.fid, f);
+  return [...byFid.values()]
     .filter((f) => f.date >= floor && hasKickedOff(f, now) && !scored.has(f.fid))
     // Newest day first, then by squad so the same squad lands in the same place, then
     // fid to make the order TOTAL - the list never depends on how the caller sorted.
@@ -55,8 +58,8 @@ export function pendingFixtures(fixtures, results, now) {
 // Mirrors roundupLines' shape - {kind, text, teamId, color} - so the tab renders these
 // through the same swatch markup. Every line is a `pending` line carrying a colour;
 // unlike the round-up there are no day or blank lines to interleave.
-export function pendingLines(fixtures, results, config, now) {
-  const chosen = pendingFixtures(fixtures, results, now);
+export function pendingLines(fixtures, results, config, now, awaiting = []) {
+  const chosen = pendingFixtures(fixtures, results, now, awaiting);
   if (chosen.length === 0) return [];
 
   // Resolved over EVERY fixture, never over `chosen`. deriveLabels shows the A/B letter
@@ -65,6 +68,9 @@ export function pendingLines(fixtures, results, config, now) {
   // is a filtered subset and therefore exactly the shape that causes this. It has
   // happened three times. NEVER pass `chosen` here.
   const { labels } = resolveTeams(fixtures ?? [], config);
+  // An awaiting game's squad may have left the fixture list entirely (its last game of
+  // the season). Config still names it - see fillLabelGaps. Never resolve over `chosen`.
+  fillLabelGaps(labels, config, chosen.map((f) => f.teamId));
 
   return chosen.map((f) => ({
     kind: "pending",

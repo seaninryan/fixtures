@@ -156,4 +156,24 @@ describe("runFaiCheck", () => {
     const f = out.snapshot.fixtures.find((x) => x.fid === "fai:52005175");
     expect(f.venue).toBe("Craughwell");
   });
+
+  it("carries a played, unscored fixture that left the feed in `awaiting`", () => {
+    const previous = runFaiCheck(base).snapshot;
+    const played = { ...previous.fixtures[0], fid: "fai:999999", date: "2026-09-16" };
+    const out = runFaiCheck({ ...base, previous: { ...previous, fixtures: [...previous.fixtures, played] } });
+    expect(out.snapshot.awaiting.map((f) => f.fid)).toEqual(["fai:999999"]);
+  });
+
+  it("starts `awaiting` empty on a first run", () => {
+    expect(runFaiCheck(base).snapshot.awaiting).toEqual([]);
+  });
+
+  it("a result that arrives in THIS run clears its awaiting game", () => {
+    const previous = { ...runFaiCheck(base).snapshot, awaiting: [{
+      fid: "fai:52005161", teamId: "fai:61270", date: "2026-09-16", time: "19:00", isHome: true,
+      ourTeam: "X", opponent: "Y", venue: "", competition: "", comment: "",
+    }] };
+    const out = runFaiCheck({ ...base, previous });
+    expect(out.snapshot.awaiting).toEqual([]);
+  });
 });
