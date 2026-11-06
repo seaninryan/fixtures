@@ -65,7 +65,8 @@ row's date, time and identity (`fid`, or a manual id).
 - `measure(text, font) → width` is injected. The component passes the canvas's
   `measureText`; tests pass a deterministic fake (`chars × size × k`).
 - `ops` are plain data: `{op:"image"}` (background), `{op:"text", x, y, text, font,
-  size, weight, color, align}`, `{op:"rule", ...}`, `{op:"box", ...}`, `{op:"chip", ...}`.
+  size, weight, color, align}`, `{op:"rule", ...}`, `{op:"box", ...}`. A time chip is a
+  box plus a text op.
 - Constants per shape: canvas size and the **text region** `{x, y, w, h}` that clears
   the crest. The canvas is the background's own pixel size, never rescaled:
   - Portrait **1080×1350**, crest top-centre (to about y 360); text below it.
@@ -89,7 +90,9 @@ row's date, time and identity (`fid`, or a manual id).
   `30 AUG – 3 SEP`. Date strings are formatted from ISO dates in UTC, never from a
   kick-off (the times-are-strings invariant).
 
-**Order.** Date, then time, then `fid` — the announcement's total order.
+**Order.** Date, then time, then `fid` — the announcement's total order. Results carry
+no kick-off time, so within a day they order by `fid` (hand-entered ones keep the
+fixture's time when pre-filled).
 
 **Fitting.**
 
@@ -99,7 +102,8 @@ row's date, time and identity (`fid`, or a manual id).
    legible on a phone.
 3. `auto`: one card for the whole window if it fits at **full** size; otherwise one card
    per day, each scaled per step 2. `single` and `perDay` force the choice.
-4. A card that still overflows at the floor splits: `SUNDAY 1 NOVEMBER (1/2)`, `(2/2)`.
+4. A card that still overflows at the floor splits, numbered on the small label line:
+   `FIXTURES (1/2)`, `FIXTURES (2/2)`.
 
 Every op lies inside the canvas, and every row inside the text region — asserted in
 tests for both shapes.
@@ -111,8 +115,10 @@ tests for both shapes.
 
 A new **Graphics** tab. Controls: Fixtures / Results; the window (the existing
 fixture windows for fixtures, the existing result windows for results); One card /
-Card per day / Auto. Shows each card as a preview canvas with **Download 4:5**,
-**Download 4:3** and **Download both**. Under each preview, the rows with a
+Card per day / Auto; 4:5 / 4:3 preview. Shows each card as a preview canvas with its own
+**Download**, plus **Download all** (the previewed shape) and **Download both shapes**.
+The two shapes can split into different numbers of cards, so "both" is per tab, not per
+card. Under each preview, the rows with a
 **Leave off** toggle. Under Results, the **Add result** form (section 4).
 
 It executes `ops` on a canvas and nothing else. No layout decision lives in JSX.
