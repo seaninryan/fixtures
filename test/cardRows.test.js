@@ -50,6 +50,16 @@ describe("resultRows", () => {
     expect(row.segments).toEqual([{ text: "Gort 1-", bold: false }, { text: "1 U15 Girls", bold: true }]);
   });
 
+  it("home loss: our score is still the bold one", () => {
+    expect(resultRows([rs({ ourScore: 0, theirScore: 3, opponent: "Gort" })], labels)[0].segments)
+      .toEqual([{ text: "U15A Boys 0", bold: true }, { text: "-3 Gort", bold: false }]);
+  });
+
+  it("away win: opponent's lower score first, ours bold", () => {
+    expect(resultRows([rs({ isHome: false, ourScore: 4, theirScore: 2, opponent: "Gort" })], labels)[0].segments)
+      .toEqual([{ text: "Gort 2-", bold: false }, { text: "4 U15A Boys", bold: true }]);
+  });
+
   it("has no time chip", () => {
     expect(resultRows([rs()], labels)[0].chip).toBeNull();
   });

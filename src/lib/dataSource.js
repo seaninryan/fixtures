@@ -35,10 +35,12 @@ export function dataUrl(name, base = DEFAULT_DATA_URL) {
 export const WORKFLOW_URL =
   `https://github.com/${DATA_REPO}/actions/workflows/daily-check.yml`;
 
-// Unauthenticated, CORS-enabled, 60 requests an hour per IP. The poll below stays far
-// under that.
-export const HEAD_COMMIT_URL =
-  `https://api.github.com/repos/${DATA_REPO}/commits/${DATA_BRANCH}`;
+// Latest commit touching latest.json. Not the branch head: latest.json changes on every
+// scan (fetchedAt moves), whereas a teams.json edit or any other push to main does not
+// touch it, so only a finished scan moves this. Returns an ARRAY of one commit.
+// Unauthenticated, CORS-enabled, 60 requests an hour per IP; the poll stays well under.
+export const LATEST_SNAPSHOT_COMMIT_URL =
+  `https://api.github.com/repos/${DATA_REPO}/commits?path=latest.json&sha=${DATA_BRANCH}&per_page=1`;
 
 // The branch URL is CDN-cached for about five minutes, so straight after a sync it can
 // serve the OLD file. A commit-pinned URL is a different cache key and is never stale.

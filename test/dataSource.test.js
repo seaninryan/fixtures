@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   DATA_REPO, DATA_BRANCH, DEFAULT_DATA_URL, EDIT_TEAMS_URL, dataUrl,
-  rawBaseAt, HEAD_COMMIT_URL, WORKFLOW_URL,
+  rawBaseAt, LATEST_SNAPSHOT_COMMIT_URL, WORKFLOW_URL,
 } from "../src/lib/dataSource.js";
 
 describe("DEFAULT_DATA_URL", () => {
@@ -57,9 +57,9 @@ describe("sync URLs", () => {
       .toBe("https://raw.githubusercontent.com/seaninryan/fixtures-data/abc123/");
   });
 
-  it("reads the branch head from the API host, which sends CORS headers", () => {
-    expect(HEAD_COMMIT_URL)
-      .toBe("https://api.github.com/repos/seaninryan/fixtures-data/commits/main");
+  it("reads the latest scan commit from the API host, which sends CORS headers", () => {
+    expect(LATEST_SNAPSHOT_COMMIT_URL)
+      .toBe("https://api.github.com/repos/seaninryan/fixtures-data/commits?path=latest.json&sha=main&per_page=1");
   });
 
   it("links the workflow page where Run workflow lives", () => {

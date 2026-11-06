@@ -12,8 +12,10 @@ import { parseScore } from "./normalize.js";
 export const MANUAL_DAYS = 14;
 
 const usable = (e) =>
-  e && typeof e === "object" && typeof e.id === "string" && typeof e.teamId === "string"
-  && typeof e.date === "string" && Number.isInteger(e.ourScore) && Number.isInteger(e.theirScore);
+  e && typeof e === "object" && typeof e.id === "string"
+  && typeof e.teamId === "string" && e.teamId !== "" && e.teamId !== "undefined"
+  && typeof e.opponent === "string" && typeof e.isHome === "boolean"
+  && typeof e.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && Number.isInteger(e.ourScore) && Number.isInteger(e.theirScore);
 
 // -> {results, conflicts}. `results` is the official list plus every live entry the
 // league has not overtaken; `conflicts` names each entry the league scored differently.
@@ -23,7 +25,12 @@ export function mergeManual(official, entries, today) {
   const floor = addDays(today, -MANUAL_DAYS);
   const results = [...list];
   const conflicts = [];
+  // Dedupe by id, last one wins: a re-entered score replaces the earlier one.
+  const byId = new Map();
   for (const e of Array.isArray(entries) ? entries : []) {
+    if (e && typeof e === "object") byId.set(e.id, e);
+  }
+  for (const e of byId.values()) {
     if (!usable(e) || e.date < floor) continue;
     // fid when the entry came from a pending game; squad and date for a free-form one.
     const match = e.fid
@@ -37,7 +44,7 @@ export function mergeManual(official, entries, today) {
     }
     results.push({
       fid: e.id, teamId: e.teamId, date: e.date, time: e.time ?? "", isHome: e.isHome,
-      ourTeam: "", opponent: e.opponent, ourScore: e.ourScore, theirScore: e.theirScore,
+      ourTeam: e.ourTeam ?? "", opponent: e.opponent, ourScore: e.ourScore, theirScore: e.theirScore,
       venue: "", competition: "", manual: true,
     });
   }
@@ -51,6 +58,7 @@ export function manualEntry({ fixture, ourScore, theirScore, newId = randomId })
   const ours = parseScore(ourScore);
   const theirs = parseScore(theirScore);
   if (ours === null || theirs === null) return null;
+  if (fixture.teamId == null || String(fixture.teamId) === "") return null;
   const fid = fixture.fid ? String(fixture.fid) : null;
   return {
     id: fid ?? `manual:${newId()}`,
@@ -60,6 +68,7 @@ export function manualEntry({ fixture, ourScore, theirScore, newId = randomId })
     time: fixture.time ?? "",
     isHome: Boolean(fixture.isHome),
     opponent: fixture.opponent,
+    ourTeam: fixture.ourTeam ?? "",
     ourScore: ours,
     theirScore: theirs,
   };

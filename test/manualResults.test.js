@@ -48,6 +48,37 @@ describe("mergeManual", () => {
     expect(mergeManual([], [old], TODAY).results).toEqual([]);
   });
 
+  it("keeps an entry exactly MANUAL_DAYS old", () => {
+    const edge = entry({ id: "manual:e", fid: null, date: "2026-10-18" });
+    expect(mergeManual([], [edge], TODAY).results).toHaveLength(1);
+  });
+
+  it("flags a free-form entry the league scored differently", () => {
+    const free = entry({ id: "manual:x", fid: null, ourScore: 9 });
+    const { results, conflicts } = mergeManual([official()], [free], TODAY);
+    expect(results).toEqual([official()]);
+    expect(conflicts).toEqual([{ entry: free, official: official() }]);
+  });
+
+  it("carries the feed name through for an unlabelled squad", () => {
+    const { results } = mergeManual([], [entry({ ourTeam: "Craughwell United" })], TODAY);
+    expect(results[0].ourTeam).toBe("Craughwell United");
+  });
+
+  it("dedupes by id, last one wins", () => {
+    const { results } = mergeManual([], [entry({ ourScore: 1 }), entry({ ourScore: 4 })], TODAY);
+    expect(results).toHaveLength(1);
+    expect(results[0].ourScore).toBe(4);
+  });
+
+  it("rejects entries with missing or malformed fields", () => {
+    const bad = [
+      entry({ opponent: undefined }), entry({ isHome: "yes" }), entry({ date: "1 Nov" }),
+      entry({ teamId: "undefined" }), entry({ teamId: "" }),
+    ];
+    expect(mergeManual([], bad, TODAY).results).toEqual([]);
+  });
+
   it("tolerates a corrupted store", () => {
     expect(mergeManual([], "nope", TODAY).results).toEqual([]);
     expect(mergeManual([], [null, { id: 1 }], TODAY).results).toEqual([]);
@@ -58,13 +89,25 @@ describe("manualEntry", () => {
   it("keys a pre-filled entry on the league fid", () => {
     const fixture = { fid: "500", teamId: "11", date: "2026-11-01", time: "14:00", isHome: true, opponent: "Gort" };
     expect(manualEntry({ fixture, ourScore: "2", theirScore: "1" }))
-      .toEqual(entry());
+      .toEqual(entry({ ourTeam: "" }));
   });
 
   it("rejects a blank or non-numeric score rather than inventing 0", () => {
     const fixture = { fid: "500", teamId: "11", date: "2026-11-01", time: "14:00", isHome: true, opponent: "Gort" };
     expect(manualEntry({ fixture, ourScore: "", theirScore: "1" })).toBeNull();
     expect(manualEntry({ fixture, ourScore: "x", theirScore: "1" })).toBeNull();
+  });
+
+  it("stores the feed name", () => {
+    const fixture = { fid: "500", teamId: "11", date: "2026-11-01", time: "14:00", isHome: true, opponent: "Gort", ourTeam: "Craughwell United" };
+    expect(manualEntry({ fixture, ourScore: "2", theirScore: "1" }).ourTeam).toBe("Craughwell United");
+  });
+
+  it("returns null without a squad", () => {
+    for (const teamId of [undefined, null, ""]) {
+      const fixture = { fid: "500", teamId, date: "2026-11-01", isHome: true, opponent: "Gort" };
+      expect(manualEntry({ fixture, ourScore: "2", theirScore: "1" })).toBeNull();
+    }
   });
 
   it("gives a free-form entry a manual id", () => {

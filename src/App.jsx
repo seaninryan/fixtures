@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AnnouncementTab from "./components/AnnouncementTab.jsx";
 import ResultsTab from "./components/ResultsTab.jsx";
 import FormTab from "./components/FormTab.jsx";
 import ChangesTab from "./components/ChangesTab.jsx";
 import SquadsTab from "./components/SquadsTab.jsx";
-import { dataUrl, DEFAULT_DATA_URL, DATA_REPO, HEAD_COMMIT_URL, WORKFLOW_URL, rawBaseAt } from "./lib/dataSource.js";
+import { dataUrl, DEFAULT_DATA_URL, DATA_REPO, LATEST_SNAPSHOT_COMMIT_URL, WORKFLOW_URL, rawBaseAt } from "./lib/dataSource.js";
 import {
   initAuth, signIn, signOut, getAccessToken, accountEmail,
 } from "./lib/googleAuth.js";
@@ -24,11 +24,19 @@ async function loadJson(name, base) {
   return res.json();
 }
 
-async function headSha() {
-  const res = await fetch(HEAD_COMMIT_URL, { cache: "no-store" });
-  if (!res.ok) throw new Error(`head commit: HTTP ${res.status}`);
-  return (await res.json()).sha;
+// Newest commit touching latest.json, as an array of one. Carries the HTTP status on
+// the error so the poll can tell a rate limit from a blip.
+async function snapshotSha() {
+  const res = await fetch(LATEST_SNAPSHOT_COMMIT_URL, { cache: "no-store" });
+  if (!res.ok) {
+    const err = new Error(`snapshot commit: HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return (await res.json())[0].sha;
 }
+
+const isRateLimit = (err) => err?.status === 403 || err?.status === 429;
 
 const SYNC_POLL_MS = 15_000;
 const SYNC_POLL_LIMIT = 40; // ten minutes
@@ -42,26 +50,40 @@ export default function App() {
   const [config, setConfig] = useState({ version: 1, teams: {} });
   // Where the JSON is read from. BASE normally; a commit-pinned base after a sync.
   const [base, setBase] = useState(BASE);
-  // "idle" | "waiting" | "timeout" | "failed"
+  // "idle" | "waiting" | "timeout" | "failed" | "ratelimited"
   const [sync, setSync] = useState("idle");
+  // A ref, not state: set synchronously so a double-click cannot start two pollers.
+  const syncing = useRef(false);
 
-  // Opens the workflow page, then watches the data repo's head. The scan always commits
-  // (fetchedAt moves every run), so a new head means the run finished.
+  // Opens the workflow page, then watches the latest commit TOUCHING latest.json.
+  // latest.json changes every run (fetchedAt moves), while a teams.json edit or any
+  // other push to main does not touch it, so only a finished scan moves this sha.
   const startSync = useCallback(async () => {
-    window.open(WORKFLOW_URL, "_blank", "noopener");
-    let start;
-    try { start = await headSha(); } catch { return setSync("failed"); }
-    setSync("waiting");
-    for (let i = 0; i < SYNC_POLL_LIMIT; i += 1) {
-      await new Promise((r) => setTimeout(r, SYNC_POLL_MS));
-      let sha;
-      try { sha = await headSha(); } catch { continue; }
-      if (sha !== start) {
-        setSync("idle");
-        return setBase(rawBaseAt(sha));
+    if (syncing.current) return;
+    syncing.current = true;
+    try {
+      window.open(WORKFLOW_URL, "_blank", "noopener");
+      let start;
+      try { start = await snapshotSha(); } catch (err) {
+        return setSync(isRateLimit(err) ? "ratelimited" : "failed");
       }
+      setSync("waiting");
+      for (let i = 0; i < SYNC_POLL_LIMIT; i += 1) {
+        await new Promise((r) => setTimeout(r, SYNC_POLL_MS));
+        let sha;
+        try { sha = await snapshotSha(); } catch (err) {
+          if (isRateLimit(err)) return setSync("ratelimited");
+          continue;
+        }
+        if (sha !== start) {
+          setSync("idle");
+          return setBase(rawBaseAt(sha));
+        }
+      }
+      return setSync("timeout");
+    } finally {
+      syncing.current = false;
     }
-    return setSync("timeout");
   }, []);
 
   const check = useCallback(async (interactive) => {
@@ -113,7 +135,8 @@ export default function App() {
             loadJson("results-fai.json", base).catch(() => null),
           ]);
         if (!live) return;
-        setConfig(loaded);
+        // A sync reload must not discard unsaved Squads-tab edits.
+        if (base === BASE) setConfig(loaded);
         setState({
           status: "ready", snapshot, history, results, faiSnapshot, faiHistory, faiResults,
         });
@@ -121,7 +144,13 @@ export default function App() {
         // The data is fetched across origins, so this is a real path: offline, a
         // rate-limited CDN, a data repo that is not public yet. Saying so beats a
         // spinner that never stops.
-        if (live) setState({ status: "failed", error: String(err?.message ?? err) });
+        if (!live) return;
+        // A failed sync reload keeps the data already on screen; only a first load
+        // has nothing to show and takes the error page.
+        setState((prev) => (prev.status === "ready" && base !== BASE
+          ? prev
+          : { status: "failed", error: String(err?.message ?? err) }));
+        if (base !== BASE) setSync("failed");
       }
     })();
     return () => { live = false; };
@@ -227,7 +256,8 @@ export default function App() {
           {sync === "waiting" ? "Waiting for the scan…" : "Sync now"}
         </button>
         {sync === "timeout" && <span>No new data yet — the run may still be going. Reload later.</span>}
-        {sync === "failed" && <span>Could not reach GitHub to watch for the run.</span>}
+        {sync === "ratelimited" && <span>Rate-limited by GitHub — try again in a few minutes.</span>}
+        {sync === "failed" && <span>Could not reach GitHub to watch for the run, or to load its data.</span>}
       </footer>
     </main>
   );
