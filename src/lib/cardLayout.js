@@ -45,6 +45,10 @@ const M = {
 // phone at Instagram's 1080 width.
 export const FLOOR = 0.6;
 
+// Centred heading lines stop this far short of each side of the region, so a fitted line
+// never runs edge to edge.
+export const INSET = 16;
+
 const DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
   "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
@@ -52,8 +56,9 @@ const asDate = (iso) => new Date(`${iso}T00:00:00Z`);
 const dayName = (iso) => DAYS[asDate(iso).getUTCDay()];
 const dayMonth = (iso) => `${asDate(iso).getUTCDate()} ${MONTHS[asDate(iso).getUTCMonth()]}`;
 
-// "29–30 AUGUST" within a month; "30 AUG – 3 SEP" across one.
+// "29–30 AUGUST" within a month; "30 AUG – 3 SEP" across one; "31 OCTOBER" for one day.
 export function rangeHeading(from, to) {
+  if (from === to) return dayMonth(from);
   const a = asDate(from);
   const b = asDate(to);
   if (a.getUTCMonth() === b.getUTCMonth() && a.getUTCFullYear() === b.getUTCFullYear()) {
@@ -94,10 +99,33 @@ function groupByDate(rows) {
   return groups;
 }
 
+// The largest size up to `size` at which widthAt(size) <= max. Scaling once by max/width
+// assumes width is proportional to size, which a real font's side bearings and hinting
+// break, so the result is re-measured and shrunk again until it truly fits.
+function shrinkToFit(size, max, widthAt) {
+  let w = widthAt(size);
+  for (let i = 0; i < 12 && w > max; i += 1) {
+    size *= Math.min(0.98, max / w);
+    w = widthAt(size);
+  }
+  return size;
+}
+
 // A text line no wider than `max`, shrinking from `size` if it must.
 function fitSize(text, font, max, measure) {
-  const w = measure(text, font);
-  return w <= max ? font.size : font.size * (max / w);
+  return shrinkToFit(font.size, max, (size) => measure(text, { ...font, size }));
+}
+
+// The injected measure, refusing a non-finite width: NaN compares false against every
+// limit, so it would otherwise pass every fit and draw text at an unchecked size.
+function checked(measure) {
+  return (text, font) => {
+    const w = measure(text, font);
+    if (!Number.isFinite(w)) {
+      throw new Error(`cardLayout: measure returned ${w} for "${text}" at ${fontString(font)}`);
+    }
+    return w;
+  };
 }
 
 function header(kind, groups, shape, part, measure, pal) {
@@ -115,7 +143,7 @@ function header(kind, groups, shape, part, measure, pal) {
   const ops = [];
   let y = region.y;
   for (const line of lines) {
-    const size = fitSize(line.text, line, region.w, measure);
+    const size = fitSize(line.text, line, region.w - 2 * INSET, measure);
     const h = size * M.lineGap;
     ops.push({ op: "text", x: cx, y: y + h / 2, text: line.text, family: line.family,
       size, weight: line.weight, color: pal.heading, align: "center" });
@@ -154,9 +182,7 @@ function rowOps(kind, r, y, s, region, measure, pal) {
   // One size for the whole row, shrunk only if THIS row is too long.
   const font = (seg, size) => ({ family: BODY_FONT, size, weight: seg.bold ? 700 : 400 });
   const widthAt = (size) => r.segments.reduce((w, seg) => w + measure(seg.text, font(seg, size)), 0);
-  let size = M.rowText * s;
-  const total = widthAt(size);
-  if (total > avail) size *= avail / total;
+  const size = shrinkToFit(M.rowText * s, avail, widthAt);
   const width = widthAt(size);
   // Fixtures read left-aligned after the chip; results are centred, as on the owner's cards.
   let x = r.chip ? left : left + (avail - width) / 2;
@@ -185,7 +211,7 @@ function buildCard(kind, groups, shapeName, measure, part) {
       // Fitted like the header lines, so no text op relies on the metrics happening to fit.
       const day = { text: dayName(g.date), family: BODY_FONT, size: M.subday * s, weight: 400 };
       ops.push({ op: "text", x: region.x + region.w / 2, y: y + (M.subdayH * s) / 2,
-        ...day, size: fitSize(day.text, day, region.w, measure),
+        ...day, size: fitSize(day.text, day, region.w - 2 * INSET, measure),
         color: pal.heading, align: "center" });
       y += M.subdayH * s;
     }
@@ -254,8 +280,9 @@ function cardsFor(kind, groups, shapeName, measure) {
 }
 
 // -> [{ops, scale, width, height, fileName}]
-export function layoutCards({ kind, rows, mode = "auto", shape, measure }) {
+export function layoutCards({ kind, rows, mode = "auto", shape, measure: raw }) {
   if (!rows?.length) return [];
+  const measure = checked(raw);
   const groups = groupByDate(rows);
   if (mode === "perDay") return groups.flatMap((g) => cardsFor(kind, [g], shape, measure));
   if (mode === "single") return cardsFor(kind, groups, shape, measure);

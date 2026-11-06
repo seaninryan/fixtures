@@ -1,7 +1,7 @@
 // test/cardLayout.test.js
 import { describe, it, expect } from "vitest";
 import {
-  layoutCards, approxMeasure, SHAPES, FLOOR, rangeHeading, fileName,
+  layoutCards, approxMeasure, SHAPES, FLOOR, INSET, rangeHeading, fileName,
 } from "../src/lib/cardLayout.js";
 
 const row = (i, date = "2026-11-01", over = {}) => ({
@@ -14,11 +14,54 @@ const lay = (over) => layoutCards({ kind: "fixtures", rows: rows(2, "2026-10-31"
   shape: "4x5", measure: approxMeasure, ...over });
 const texts = (card) => card.ops.filter((o) => o.op === "text").map((o) => o.text);
 
-// The bounds a text op occupies, by its alignment.
-function span(o) {
-  const w = approxMeasure(o.text, o);
+// The bounds a text op occupies, by its alignment, under the measure that laid it out.
+function span(o, measure = approxMeasure) {
+  const w = measure(o.text, o);
   return o.align === "center" ? [o.x - w / 2, o.x + w / 2] : [o.x, o.x + w];
 }
+
+// Width is NOT proportional to size here, as with a real font's fixed side bearings, so a
+// fit that scales once by max/width and never re-measures overflows.
+const nonProportional = (t, f) => String(t).length * (0.55 * f.size + 1.5);
+// Wide enough that the header's date and range lines must shrink too.
+const wideNonProportional = (t, f) => String(t).length * (0.75 * f.size + 4);
+
+// Every op inside the canvas, every row inside the text region.
+function expectInBounds(cards, shapeName, measure = approxMeasure) {
+  const { w, h, region } = SHAPES[shapeName];
+  const right = region.x + region.w + 0.001;
+  const bottom = region.y + region.h + 0.001;
+  for (const card of cards) {
+    for (const o of card.ops) {
+      if (o.op === "box") {
+        expect(o.x).toBeGreaterThanOrEqual(region.x);
+        expect(o.y).toBeGreaterThanOrEqual(region.y);
+        expect(o.x + o.w).toBeLessThanOrEqual(right);
+        expect(o.y + o.h).toBeLessThanOrEqual(bottom);
+      }
+      if (o.op === "text") {
+        const [a, b] = span(o, measure);
+        expect(a).toBeGreaterThanOrEqual(region.x - 0.001);
+        expect(b).toBeLessThanOrEqual(right);
+        expect(o.y).toBeGreaterThanOrEqual(region.y);
+        expect(o.y).toBeLessThanOrEqual(bottom);
+        expect(o.y).toBeLessThanOrEqual(h);
+      }
+      if (o.op === "rule") {
+        expect(o.x1).toBeGreaterThanOrEqual(region.x);
+        expect(o.x2).toBeLessThanOrEqual(right);
+        expect(o.y).toBeGreaterThanOrEqual(region.y);
+        expect(o.y).toBeLessThanOrEqual(bottom);
+      }
+    }
+    expect(card.width).toBe(w);
+    expect(card.height).toBe(h);
+  }
+}
+
+const SALTHILL = {
+  segments: [{ text: "Junior Men's Reserves", bold: true }, { text: " @ Salthill Devon Athletic Football Club Reserves", bold: false }],
+};
 
 describe("headings", () => {
   it("a single day reads FIXTURES / SATURDAY / 31 OCTOBER", () => {
@@ -36,6 +79,10 @@ describe("headings", () => {
 
   it("cross-month range", () => {
     expect(rangeHeading("2026-08-30", "2026-09-03")).toBe("30 AUG – 3 SEP");
+  });
+
+  it("a range of one day reads as that day", () => {
+    expect(rangeHeading("2026-10-31", "2026-10-31")).toBe("31 OCTOBER");
   });
 
   it("several days get the range and a sub-heading per day", () => {
@@ -125,29 +172,71 @@ describe("fitting", () => {
   for (const shape of Object.keys(SHAPES)) {
     for (const n of [1, 6, 12, 30]) {
       it(`${shape}, ${n} rows: every op inside the canvas, every row inside the text region`, () => {
-        const { w, h, region } = SHAPES[shape];
-        for (const card of lay({ shape, rows: rows(n, "2026-11-01") })) {
-          for (const o of card.ops) {
-            if (o.op === "box") {
-              expect(o.x).toBeGreaterThanOrEqual(region.x);
-              expect(o.y).toBeGreaterThanOrEqual(region.y);
-              expect(o.x + o.w).toBeLessThanOrEqual(region.x + region.w + 0.001);
-              expect(o.y + o.h).toBeLessThanOrEqual(region.y + region.h + 0.001);
-            }
-            if (o.op === "text") {
-              const [a, b] = span(o);
-              expect(a).toBeGreaterThanOrEqual(region.x - 0.001);
-              expect(o.y).toBeGreaterThanOrEqual(region.y);
-              expect(b).toBeLessThanOrEqual(region.x + region.w + 0.001);
-              expect(o.y).toBeLessThanOrEqual(h);
+        expectInBounds(lay({ shape, rows: rows(n, "2026-11-01") }), shape);
+      });
+
+      it(`${shape}, ${n} results rows (no chip): inside the text region`, () => {
+        const results = rows(n, "2026-11-01").map((r) => ({ ...r, time: "", chip: null }));
+        expectInBounds(lay({ kind: "results", shape, rows: results }), shape);
+      });
+    }
+
+    // 7,1,7,1 splits into pages that are already balanced; 1,1,4,7 on 4x3 is a case where
+    // the balanced chunks move a day boundary and no longer fit, so it takes the greedy
+    // fallback.
+    for (const pattern of [[7, 1, 7, 1], [1, 1, 4, 7]]) {
+      it(`${shape}: single mode over days of ${pattern} rows stays in bounds, every row once, in order`, () => {
+        const days = ["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"];
+        const all = [];
+        pattern.forEach((n, d) => {
+          for (let i = 0; i < n; i += 1) {
+            const k = all.length;
+            all.push(row(k, days[d], { id: String(k).padStart(2, "0"), time: "10:00", chip: "10:00",
+              segments: [{ text: `R${k}`, bold: true }, { text: " v Knocknacarra", bold: false }] }));
+          }
+        });
+        const cards = lay({ shape, mode: "single", rows: [...all].reverse() });
+        expect(cards.length).toBeGreaterThan(1);
+        expectInBounds(cards, shape);
+        const seen = cards.flatMap((c) => texts(c).filter((t) => /^R\d+$/.test(t)));
+        expect(seen).toEqual(all.map((r) => r.segments[0].text));
+      });
+    }
+
+    for (const [name, measure] of [["non-proportional", nonProportional], ["wide non-proportional", wideNonProportional]]) {
+      it(`${shape}, ${name} measure: the long Salthill row still fits`, () => {
+        const long = row(1, "2026-11-01", SALTHILL);
+        expectInBounds(lay({ shape, measure, rows: [long, row(2, "2026-11-01")] }), shape, measure);
+        const results = [{ ...long, chip: null, time: "" }, { ...row(2, "2026-11-01"), chip: null, time: "" }];
+        expectInBounds(lay({ shape, measure, kind: "results", rows: results }), shape, measure);
+      });
+
+      it(`${shape}, ${name} measure: long headings fit inside the inset`, () => {
+        const sets = [
+          [row(1, "2026-09-30")], // WEDNESDAY / 30 SEPTEMBER
+          [row(1, "2026-09-30"), row(2, "2026-10-03")], // a cross-month range, sub-headings
+          rows(30, "2026-09-30"), // FIXTURES (n/m)
+        ];
+        for (const rs of sets) {
+          for (const mode of ["auto", "single"]) {
+            const cards = lay({ shape, measure, mode, rows: rs });
+            expectInBounds(cards, shape, measure);
+            const { region } = SHAPES[shape];
+            for (const o of cards.flatMap((c) => c.ops)) {
+              if (o.op !== "text" || o.align !== "center" || o.color === "#10244A") continue;
+              const [a, b] = span(o, measure);
+              expect(a).toBeGreaterThanOrEqual(region.x + INSET - 0.001);
+              expect(b).toBeLessThanOrEqual(region.x + region.w - INSET + 0.001);
             }
           }
-          expect(card.width).toBe(w);
-          expect(card.height).toBe(h);
         }
       });
     }
   }
+
+  it("a measure that returns NaN is an error, not a blank card", () => {
+    expect(() => lay({ measure: () => NaN })).toThrow(/cardLayout: measure returned NaN for/);
+  });
 });
 
 describe("file names", () => {
