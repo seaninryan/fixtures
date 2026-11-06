@@ -17,7 +17,7 @@ const rs = (over = {}) => ({
 
 describe("fixtureRows", () => {
   it("bolds the squad and writes v for home", () => {
-    expect(fixtureRows([fx()], labels)[0]).toEqual({
+    expect(fixtureRows([fx()], labels)[0]).toMatchObject({
       id: "1", date: "2026-10-31", time: "12:00", chip: "12:00",
       segments: [{ text: "U15A Boys", bold: true }, { text: " v Knocknacarra", bold: false }],
     });
@@ -81,5 +81,35 @@ describe("cardLabels", () => {
   it("names a squad that has left the fixture list from config", () => {
     const config = { version: 1, teams: { "77": { label: "U18 Girls" } } };
     expect(cardLabels([], config, ["77"])["77"]).toBe("U18 Girls");
+  });
+});
+
+describe("opponent names and meta", () => {
+  const config = { opponents: { "Team X Junior Men's Team": "Team X" } };
+
+  it("fixture rows show the cleaned or renamed opponent", () => {
+    expect(fixtureRows([fx({ opponent: "Knocknacarra D" })], labels, config)[0].segments[1].text)
+      .toBe(" v Knocknacarra");
+    expect(fixtureRows([fx({ opponent: "Team X Junior Men's Team" })], labels, config)[0].segments[1].text)
+      .toBe(" v Team X");
+  });
+
+  it("result rows show the cleaned opponent on both sides", () => {
+    expect(resultRows([rs({ opponent: "Gort B" })], labels, config)[0].segments[1].text).toBe("-1 Gort");
+    expect(resultRows([rs({ opponent: "Gort B", isHome: false })], labels, config)[0].segments[0].text).toBe("Gort 1-");
+  });
+
+  it("a hand-entered result keeps the name as typed", () => {
+    expect(resultRows([rs({ opponent: "Gort B", manual: true })], labels, config)[0].segments[1].text).toBe("-1 Gort B");
+  });
+
+  it("rows carry meta for the section UI", () => {
+    expect(fixtureRows([fx({ opponent: "Knocknacarra D" })], labels, config)[0].meta).toEqual({
+      label: "U15A Boys", versus: "v", opponentRaw: "Knocknacarra D", opponent: "Knocknacarra",
+      score: null, editable: true,
+    });
+    expect(resultRows([rs({ opponent: "Gort B", manual: true })], labels, config)[0].meta).toMatchObject({
+      score: "0-1", editable: false,
+    });
   });
 });

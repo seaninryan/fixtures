@@ -324,3 +324,18 @@ describe("landscape body under the crest", () => {
     expect(bodyRegion(SHAPES["4x5"])).toEqual({ x: region.x, w: region.w, top: region.y });
   });
 });
+
+describe("rowIds", () => {
+  it("each card lists exactly its rows, in order, covering all rows once", () => {
+    for (const shape of Object.keys(SHAPES)) {
+      for (const mode of ["auto", "single", "perDay"]) {
+        const input = [...rows(9, "2026-11-01"), ...rows(3, "2026-11-02").map((r) => ({ ...r, id: `b${r.id}` }))];
+        const cards = lay({ shape, mode, rows: input });
+        const all = cards.flatMap((c) => c.rowIds);
+        expect([...all].sort()).toEqual(input.map((r) => r.id).sort());
+        expect(new Set(all).size).toBe(all.length);
+        for (const c of cards) expect(c.from <= c.to).toBe(true);
+      }
+    }
+  });
+});
