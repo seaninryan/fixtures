@@ -67,9 +67,14 @@ row's date, time and identity (`fid`, or a manual id).
 - `ops` are plain data: `{op:"image"}` (background), `{op:"text", x, y, text, font,
   size, weight, color, align}`, `{op:"rule", ...}`, `{op:"box", ...}`, `{op:"chip", ...}`.
 - Constants per shape: canvas size and the **text region** `{x, y, w, h}` that clears
-  the crest. Portrait 1080×1350, crest top-centre, text below it. Landscape 1080×810,
-  **crest on the left, text region on the right**. Moving the crest in Canva means
-  editing these four numbers.
+  the crest. The canvas is the background's own pixel size, never rescaled:
+  - Portrait **1080×1350**, crest top-centre (to about y 360); text below it.
+  - Landscape **1448×1086** (4:3), crest in the **top-left corner** (about x 70–355,
+    y 55–345); text region to the right of it at full height, inside the results
+    card's football border (about x 380–1330).
+  Moving the crest in Canva means editing these four numbers. A background whose
+  natural size differs from its constant is an error, so a re-export at the wrong
+  size is caught rather than silently stretched.
 - Palette per kind: fixtures yellow text, yellow time chips, translucent navy boxes with
   a thin yellow border; results navy text in white boxes with a thin border. Values
   sampled from the owner's cards.
@@ -115,7 +120,7 @@ It executes `ops` on a canvas and nothing else. No layout decision lives in JSX.
 ### Backgrounds
 
 `public/cards/fixtures-4x5.png`, `fixtures-4x3.png`, `results-4x5.png`,
-`results-4x3.png`, supplied by the owner from Canva at exactly those sizes, crest
+`results-4x3.png`, exported by the owner from Canva at 1080×1350 and 1448×1086, crest
 included. A missing background is an error shown on the card, not a blank canvas.
 
 ## 3. Sync now
