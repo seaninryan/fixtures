@@ -4,9 +4,10 @@
 // runs the ops on canvases. Nothing at render time touches document, localStorage or a
 // canvas - the SSR tests render it in node - so those live in effects and handlers.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { WINDOWS, RESULT_WINDOWS, windowPredicate, resultWindowPredicate } from "../lib/window.js";
+import { WINDOWS, RESULT_WINDOWS, windowPredicate, resultWindowPredicate, addDays } from "../lib/window.js";
 import { fixtureRows, resultRows, cardLabels } from "../lib/cardRows.js";
-import { mergeManual, manualEntry, applyLeaveOff } from "../lib/manualResults.js";
+import { mergeManual, manualEntry, applyLeaveOff, MANUAL_DAYS } from "../lib/manualResults.js";
+import { parseScore } from "../lib/normalize.js";
 import { pendingFixtures } from "../lib/pending.js";
 import { layoutCards, approxMeasure, DISPLAY_FONT, BODY_FONT, SHAPES } from "../lib/cardLayout.js";
 import { canvasMeasure, loadBackground, drawCard, downloadCanvas } from "./cardCanvas.js";
@@ -29,18 +30,29 @@ function writeLs(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
 }
 
-function useFontsReady() {
-  const [ready, setReady] = useState(false);
+// "loading" | "ready" | "missing". A card drawn before the fonts arrive, or without
+// them, is in a fallback face at widths measured for another font - so nothing draws or
+// downloads until "ready", and "missing" says so on screen.
+function useCardFonts() {
+  const [status, setStatus] = useState("loading");
   useEffect(() => {
     let live = true;
     const faces = [`700 40px "${DISPLAY_FONT}"`, `400 40px "${BODY_FONT}"`, `700 40px "${BODY_FONT}"`];
     Promise.all(faces.map((f) => document.fonts.load(f)))
       .catch(() => {})
-      .then(() => { if (live) setReady(true); });
+      .then(() => {
+        if (live) setStatus(faces.every((f) => document.fonts.check(f)) ? "ready" : "missing");
+      });
     return () => { live = false; };
   }, []);
-  return ready;
+  return status;
 }
+
+const bothScores = (a, b) => parseScore(a) !== null && parseScore(b) !== null;
+
+// The entries mergeManual would still use: older ones are dropped on read.
+const liveEntries = (entries, today) =>
+  entries.filter((e) => typeof e?.date === "string" && e.date >= addDays(today, -MANUAL_DAYS));
 
 // layoutCards throws when a single row cannot fit even at the floor scale. There is no
 // error boundary above the tabs, so that becomes a message, not a blank app.
@@ -53,21 +65,26 @@ function layoutAll(kind, rows, mode, measure) {
   }
 }
 
-function CardPreview({ kind, shape, card }) {
+function CardPreview({ kind, shape, card, fontsReady }) {
   const ref = useRef(null);
   const [error, setError] = useState(null);
   // Download stays off until the background is drawn, or it would save a blank PNG.
   const [drawn, setDrawn] = useState(false);
+  // Keyed on content, not identity: an unrelated re-render that rebuilds an identical
+  // card must not reload the background and redraw.
+  const signature = useMemo(() => JSON.stringify(card), [card]);
   useEffect(() => {
     let live = true;
     setDrawn(false);
+    if (!fontsReady) return () => { live = false; };
     loadBackground(kind, shape)
       .then((bg) => {
         if (live && ref.current) { drawCard(ref.current, card, bg); setError(null); setDrawn(true); }
       })
       .catch((e) => { if (live) setError(e.message); });
     return () => { live = false; };
-  }, [kind, shape, card]);
+    // `signature` stands in for `card` in the deps.
+  }, [kind, shape, signature, fontsReady]);
   return (
     <figure className="cardprev">
       <canvas ref={ref} width={card.width} height={card.height} />
@@ -98,10 +115,18 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
   const [leaveOff, setLeaveOff] = useState([]);
   const [manual, setManual] = useState([]);
   const [downloadError, setDownloadError] = useState(null);
-  useEffect(() => { setLeaveOff(readLs(LS_LEAVE_OFF)); setManual(readLs(LS_MANUAL)); }, []);
-  const fontsReady = useFontsReady();
-  // approxMeasure until the fonts are in: measuring a fallback face would fit the text to
-  // the wrong widths, and the cards re-lay out once the real ones arrive.
+  useEffect(() => {
+    setLeaveOff(readLs(LS_LEAVE_OFF));
+    // Expired entries are pruned from storage, not just hidden, so it cannot grow forever.
+    const stored = readLs(LS_MANUAL);
+    const kept = liveEntries(stored, today);
+    if (kept.length !== stored.length) writeLs(LS_MANUAL, kept);
+    setManual(kept);
+  }, [today]);
+  const fonts = useCardFonts();
+  const fontsReady = fonts === "ready";
+  // approxMeasure until the fonts are in. Nothing is drawn with it - previews and
+  // downloads wait for fontsReady - it only lets the tab show its card list early.
   const measure = useMemo(() => (fontsReady ? canvasMeasure() : approxMeasure), [fontsReady]);
 
   const isResults = kind === "Results";
@@ -178,6 +203,10 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
         ))}
       </div>
 
+      {fonts === "missing" && (
+        <div className="card warn"><p>Card fonts did not load — downloads would use the wrong font.</p>
+          <p className="dim">Reload; if it persists, Google Fonts may be blocked on this network.</p></div>
+      )}
       {layoutError && <div className="card warn"><p>Could not lay out the cards: {layoutError}</p></div>}
       {!layoutError && cards.length === 0 && (
         <div className="card"><p className="dim">Nothing in this window.</p></div>
@@ -185,12 +214,12 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
       {cards.length > 0 && (
         <>
           <div className="row">
-            <button className="primary" onClick={() => startDownload([shape])}>Download all ({SHAPE_LABEL[shape]})</button>
-            <button className="chip" onClick={() => startDownload(SHAPE_NAMES)}>Download both shapes</button>
+            <button className="primary" disabled={!fontsReady} onClick={() => startDownload([shape])}>Download all ({SHAPE_LABEL[shape]})</button>
+            <button className="chip" disabled={!fontsReady} onClick={() => startDownload(SHAPE_NAMES)}>Download both shapes</button>
             {downloadError && <span className="dim">{downloadError}</span>}
           </div>
           <div className="cardgrid">
-            {cards.map((card) => <CardPreview key={card.fileName} kind={lower} shape={shape} card={card} />)}
+            {cards.map((card) => <CardPreview key={card.fileName} kind={lower} shape={shape} card={card} fontsReady={fontsReady} />)}
           </div>
         </>
       )}
@@ -221,7 +250,7 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
 
       {isResults && (
         <ManualResults fixtures={fixtures} awaiting={awaiting} official={official} config={config}
-                       now={now} manual={manual} onChange={saveManual} />
+                       now={now} today={today} manual={manual} onChange={saveManual} />
       )}
     </section>
   );
@@ -239,10 +268,16 @@ function KindPicker({ kind, setKind }) {
 
 // Hand-entered results. Pending games come pre-filled; a free-form row covers a game the
 // league never listed. Stored in this browser only; shown on cards only.
-function ManualResults({ fixtures, awaiting, official, config, now, manual, onChange }) {
+function ManualResults({ fixtures, awaiting, official, config, now, today, manual, onChange }) {
   const pending = now ? pendingFixtures(fixtures, official, now, awaiting) : [];
+  const shown = liveEntries(manual, today);
+  // A pre-fill is hidden once it has an entry: by fid, or - for a free-form entry for the
+  // same game - by squad and date, the rule mergeManual matches official results by.
   const entered = new Set(manual.map((e) => e.id));
-  const labels = cardLabels(fixtures, config, [...pending, ...manual].map((x) => x.teamId));
+  const enteredDay = new Set(manual.map((e) => `${e.teamId}|${e.date}`));
+  // Gaps include the results' squads, so a squad whose season has ended is still pickable.
+  const labels = cardLabels(fixtures, config,
+    [...pending, ...manual, ...official].map((x) => x.teamId));
   const squads = Object.entries(labels).sort((a, b) => a[1].localeCompare(b[1]));
   const blank = { teamId: "", opponent: "", isHome: true, date: now?.date ?? "", ours: "", theirs: "" };
   const [free, setFree] = useState(blank);
@@ -258,13 +293,13 @@ function ManualResults({ fixtures, awaiting, official, config, now, manual, onCh
   return (
     <div className="card">
       <p className="phead">Add a result the league has not published</p>
-      {pending.filter((f) => !entered.has(String(f.fid))).map((f) => (
+      {pending.filter((f) => !entered.has(String(f.fid)) && !enteredDay.has(`${f.teamId}|${f.date}`)).map((f) => (
         <PendingRow key={f.fid} fixture={f} label={labels[f.teamId] ?? f.ourTeam} onAdd={add} />
       ))}
       <form className="row" onSubmit={(ev) => {
         ev.preventDefault();
         const fixture = { fid: null, teamId: free.teamId, date: free.date, time: "",
-          isHome: free.isHome, opponent: free.opponent.trim() };
+          isHome: free.isHome, opponent: free.opponent.trim(), ourTeam: labels[free.teamId] ?? "" };
         if (add(fixture, free.ours, free.theirs)) setFree(blank);
       }}>
         <select value={free.teamId} onChange={(e) => setFree({ ...free, teamId: e.target.value })}>
@@ -279,12 +314,12 @@ function ManualResults({ fixtures, awaiting, official, config, now, manual, onCh
         <input type="date" value={free.date} onChange={(e) => setFree({ ...free, date: e.target.value })} />
         <input className="score" inputMode="numeric" placeholder="Us" value={free.ours} onChange={(e) => setFree({ ...free, ours: e.target.value })} />
         <input className="score" inputMode="numeric" placeholder="Them" value={free.theirs} onChange={(e) => setFree({ ...free, theirs: e.target.value })} />
-        <button className="chip" type="submit" disabled={!free.teamId || !free.opponent.trim() || !free.date}>Add</button>
+        <button className="chip" type="submit" disabled={!free.teamId || !free.opponent.trim() || !free.date || !bothScores(free.ours, free.theirs)}>Add</button>
       </form>
-      {manual.length > 0 && (
+      {shown.length > 0 && (
         <>
           <p className="phead">Entered by hand</p>
-          {manual.map((e) => (
+          {shown.map((e) => (
             <div key={e.id} className="aline">
               {labels[e.teamId] ?? e.ourTeam ?? e.teamId} {e.isHome ? "v" : "@"} {e.opponent}: {e.ourScore}-{e.theirScore} ({e.date}){" "}
               <button className="chip" onClick={() => onChange(manual.filter((m) => m.id !== e.id))}>Remove</button>
@@ -304,7 +339,7 @@ function PendingRow({ fixture, label, onAdd }) {
       <span>{`${label} ${fixture.isHome ? "v" : "@"} ${fixture.opponent} — ${fixture.date}`}</span>
       <input className="score" inputMode="numeric" placeholder="Us" value={ours} onChange={(e) => setOurs(e.target.value)} />
       <input className="score" inputMode="numeric" placeholder="Them" value={theirs} onChange={(e) => setTheirs(e.target.value)} />
-      <button className="chip" onClick={() => onAdd(fixture, ours, theirs)}>Add</button>
+      <button className="chip" disabled={!bothScores(ours, theirs)} onClick={() => onAdd(fixture, ours, theirs)}>Add</button>
     </div>
   );
 }

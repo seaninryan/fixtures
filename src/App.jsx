@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AnnouncementTab from "./components/AnnouncementTab.jsx";
 import ResultsTab from "./components/ResultsTab.jsx";
 import GraphicsTab from "./components/GraphicsTab.jsx";
@@ -41,6 +41,33 @@ const isRateLimit = (err) => err?.status === 403 || err?.status === 429;
 
 const SYNC_POLL_MS = 15_000;
 const SYNC_POLL_LIMIT = 40; // ten minutes
+
+// The loaded files merged across both sources. Memoised in App on `state`, so a render
+// that changes nothing loaded (a sync poll tick, a tab switch) hands the tabs the same
+// arrays and the Graphics tab does not rebuild every card.
+function combine(state) {
+  const { snapshot, faiSnapshot } = state;
+  // Every tab sees BOTH sources. The files are separate; the app is not. Labels and
+  // colours come from the one shared teams.json, so a squad keeps its identity across the
+  // announcement, the round-up, the chart and the table whichever system it is on.
+  const fixtures = [...(snapshot.fixtures ?? []), ...(faiSnapshot?.fixtures ?? [])];
+  // Played games each scan is still waiting on a result for - see awaiting.js.
+  const awaiting = [...(snapshot.awaiting ?? []), ...(faiSnapshot?.awaiting ?? [])];
+
+  // ResultsTab and FormTab both read `results?.results ?? []` and both branch on
+  // `results === null`, so this must stay the WRAPPER shape and must keep null meaning
+  // "could not load" - which they render differently from "nobody played". A bare array
+  // here would silently break both tabs.
+  //
+  // null only when BOTH failed: a club whose squads have not migrated has no
+  // results-fai.json at all, and that must not blank the Results tab. The cost is that if
+  // exactly one of the two fails we show a partial store without saying so - accepted,
+  // because catch(() => null) cannot tell "absent" from "failed" across origins.
+  const results = state.results === null && state.faiResults === null
+    ? null
+    : { results: [...(state.results?.results ?? []), ...(state.faiResults?.results ?? [])] };
+  return { fixtures, awaiting, results };
+}
 
 export default function App() {
   // "checking" | "signed-out" | "not-owner" | "ok". See src/lib/owner.js: this gate
@@ -157,6 +184,8 @@ export default function App() {
     return () => { live = false; };
   }, [gate, base]);
 
+  const combined = useMemo(() => (state.status === "ready" ? combine(state) : null), [state]);
+
   if (gate === "checking") {
     return <main className="wrap"><p className="dim">Loading…</p></main>;
   }
@@ -203,25 +232,7 @@ export default function App() {
   const now = clubNow(new Date());
   const today = now.date;
 
-  // Every tab sees BOTH sources. The files are separate; the app is not. Labels and
-  // colours come from the one shared teams.json, so a squad keeps its identity across the
-  // announcement, the round-up, the chart and the table whichever system it is on.
-  const fixtures = [...(snapshot.fixtures ?? []), ...(faiSnapshot?.fixtures ?? [])];
-  // Played games each scan is still waiting on a result for - see awaiting.js.
-  const awaiting = [...(snapshot.awaiting ?? []), ...(faiSnapshot?.awaiting ?? [])];
-
-  // ResultsTab and FormTab both read `results?.results ?? []` and both branch on
-  // `results === null`, so this must stay the WRAPPER shape and must keep null meaning
-  // "could not load" - which they render differently from "nobody played". A bare array
-  // here would silently break both tabs.
-  //
-  // null only when BOTH failed: a club whose squads have not migrated has no
-  // results-fai.json at all, and that must not blank the Results tab. The cost is that if
-  // exactly one of the two fails we show a partial store without saying so - accepted,
-  // because catch(() => null) cannot tell "absent" from "failed" across origins.
-  const results = state.results === null && state.faiResults === null
-    ? null
-    : { results: [...(state.results?.results ?? []), ...(state.faiResults?.results ?? [])] };
+  const { fixtures, awaiting, results } = combined;
 
   const history = [...(state.history ?? []), ...(state.faiHistory ?? [])]
     .sort((a, b) => String(b.checkedAt).localeCompare(String(a.checkedAt)));
