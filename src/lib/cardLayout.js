@@ -219,15 +219,38 @@ function paginate(kind, groups, shapeName, measure) {
   return pages.map((p) => groupByDate(p));
 }
 
+// Greedy pages decide only HOW MANY cards; the rows are then dealt out evenly in order,
+// earlier cards taking the extra row (30 -> 8,8,7,7), so the halves of one day share a
+// scale instead of 8 rows shrunk beside 4 at full size. A balanced chunk is never larger
+// than the greedy page it replaces, but day boundaries can still shift what fits, so any
+// chunk that fails falls back to the greedy pages rather than throwing.
+function balance(pages) {
+  const flat = pages.flatMap((p) => p.flatMap((g) => g.rows));
+  const k = pages.length;
+  const base = Math.floor(flat.length / k);
+  const extra = flat.length % k;
+  const chunks = [];
+  let at = 0;
+  for (let i = 0; i < k; i += 1) {
+    const n = base + (i < extra ? 1 : 0);
+    chunks.push(groupByDate(flat.slice(at, at + n)));
+    at += n;
+  }
+  return chunks;
+}
+
+function build(kind, pages, shapeName, measure) {
+  const cards = pages.map((p, i) => buildCard(kind, p, shapeName, measure, [i + 1, pages.length]));
+  return cards.every(Boolean) ? cards : null;
+}
+
 function cardsFor(kind, groups, shapeName, measure) {
   const whole = buildCard(kind, groups, shapeName, measure, null);
   if (whole) return [whole];
   const pages = paginate(kind, groups, shapeName, measure);
-  return pages.map((p, i) => {
-    const card = buildCard(kind, p, shapeName, measure, [i + 1, pages.length]);
-    if (!card) throw new Error("cardLayout: a single row does not fit at the floor scale");
-    return card;
-  });
+  const cards = build(kind, balance(pages), shapeName, measure) ?? build(kind, pages, shapeName, measure);
+  if (!cards) throw new Error("cardLayout: a single row does not fit at the floor scale");
+  return cards;
 }
 
 // -> [{ops, scale, width, height, fileName}]

@@ -93,6 +93,18 @@ describe("fitting", () => {
     expect(card.scale).toBeGreaterThanOrEqual(FLOOR);
   });
 
+  const chipCount = (c) => texts(c).filter((t) => /^\d\d:\d\d$/.test(t)).length;
+
+  it("balances a split: 12 rows become two cards of 6 at the same scale", () => {
+    const cards = lay({ rows: rows(12, "2026-11-01") });
+    expect(cards.map(chipCount)).toEqual([6, 6]);
+    expect(cards[0].scale).toBe(cards[1].scale);
+  });
+
+  it("balances a split in order, earlier cards taking the extra row", () => {
+    expect(lay({ rows: rows(30, "2026-11-01") }).map(chipCount)).toEqual([8, 8, 7, 7]);
+  });
+
   it("splits a day that cannot fit at the floor, numbering the parts", () => {
     const cards = lay({ rows: rows(30, "2026-11-01") });
     expect(cards.length).toBeGreaterThan(1);
@@ -118,12 +130,14 @@ describe("fitting", () => {
           for (const o of card.ops) {
             if (o.op === "box") {
               expect(o.x).toBeGreaterThanOrEqual(region.x);
+              expect(o.y).toBeGreaterThanOrEqual(region.y);
               expect(o.x + o.w).toBeLessThanOrEqual(region.x + region.w + 0.001);
               expect(o.y + o.h).toBeLessThanOrEqual(region.y + region.h + 0.001);
             }
             if (o.op === "text") {
               const [a, b] = span(o);
               expect(a).toBeGreaterThanOrEqual(region.x - 0.001);
+              expect(o.y).toBeGreaterThanOrEqual(region.y);
               expect(b).toBeLessThanOrEqual(region.x + region.w + 0.001);
               expect(o.y).toBeLessThanOrEqual(h);
             }
