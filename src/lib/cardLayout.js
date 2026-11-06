@@ -16,10 +16,25 @@ export const BODY_FONT = "Mulish";
 // Canvas = the background's own pixel size. `region` is where text may go, clear of the
 // crest (portrait: top-centre; landscape: top-left corner) and inside the results card's
 // football border. Moving the crest in Canva means editing these numbers.
+//
+// `body` (optional) is where the rows and day sub-headings go when that differs from the
+// heading region. On landscape the headings sit beside the crest, but below it the card
+// is clear, so the rows are centred on the whole card - the owner's choice. No row box
+// starts above `top`, so none sits beside the crest (which ends about y 345).
 export const SHAPES = {
   "4x5": { w: 1080, h: 1350, region: { x: 80, y: 395, w: 920, h: 905 } },
-  "4x3": { w: 1448, h: 1086, region: { x: 400, y: 115, w: 900, h: 815 } },
+  "4x3": {
+    w: 1448, h: 1086,
+    region: { x: 400, y: 115, w: 900, h: 815 },
+    body: { x: 274, w: 900, top: 360 },
+  },
 };
+
+// -> {x, w, top}: the horizontal band rows use, and the highest y they may start at.
+export function bodyRegion(shape) {
+  const { region, body } = shape;
+  return body ?? { x: region.x, w: region.w, top: region.y };
+}
 
 const PALETTES = {
   fixtures: {
@@ -160,14 +175,14 @@ function bodyHeight(groups, s, showDays) {
   return s * ((showDays ? groups.length * M.subdayH : 0) + n * M.rowH + Math.max(0, n - 1) * M.rowGap);
 }
 
-function rowOps(r, y, s, region, measure, pal) {
+function rowOps(r, y, s, area, measure, pal) {
   const ops = [];
   const h = M.rowH * s;
   const mid = y + h / 2;
-  ops.push({ op: "box", x: region.x, y, w: region.w, h, r: M.radius * s,
+  ops.push({ op: "box", x: area.x, y, w: area.w, h, r: M.radius * s,
     fill: pal.box, stroke: pal.boxStroke });
-  let left = region.x + M.pad * s;
-  let avail = region.w - 2 * M.pad * s;
+  let left = area.x + M.pad * s;
+  let avail = area.w - 2 * M.pad * s;
   if (r.chip) {
     const cw = M.chipW * s;
     const ch = M.chipH * s;
@@ -199,24 +214,29 @@ function buildCard(kind, groups, shapeName, measure, part) {
   const shape = SHAPES[shapeName];
   const pal = PALETTES[kind];
   const { region } = shape;
+  const body = bodyRegion(shape);
   const showDays = groups.length > 1;
   const head = header(kind, groups, shape, part, measure, pal);
-  const avail = region.y + region.h - head.bottom;
+  // Only the row BOXES must clear the crest. A multi-day card opens with a short, centred
+  // day sub-heading that sits right of the crest, so it may start under the rule as
+  // before; at FLOOR its slot still carries the first box below body.top.
+  const top = Math.max(head.bottom, body.top - (showDays ? M.subdayH * FLOOR : 0));
+  const avail = region.y + region.h - top;
   const s = Math.min(1, avail / bodyHeight(groups, 1, showDays));
   if (s < FLOOR) return null;
   const ops = [{ op: "image" }, ...head.ops];
-  let y = head.bottom;
+  let y = top;
   for (const g of groups) {
     if (showDays) {
       // Fitted like the header lines, so no text op relies on the metrics happening to fit.
       const day = { text: dayName(g.date), family: BODY_FONT, size: M.subday * s, weight: 400 };
-      ops.push({ op: "text", x: region.x + region.w / 2, y: y + (M.subdayH * s) / 2,
-        ...day, size: fitSize(day.text, day, region.w - 2 * INSET, measure),
+      ops.push({ op: "text", x: body.x + body.w / 2, y: y + (M.subdayH * s) / 2,
+        ...day, size: fitSize(day.text, day, body.w - 2 * INSET, measure),
         color: pal.heading, align: "center" });
       y += M.subdayH * s;
     }
     for (const r of g.rows) {
-      ops.push(...rowOps(r, y, s, region, measure, pal));
+      ops.push(...rowOps(r, y, s, body, measure, pal));
       y += (M.rowH + M.rowGap) * s;
     }
   }

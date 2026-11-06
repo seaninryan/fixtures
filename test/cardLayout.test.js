@@ -1,7 +1,7 @@
 // test/cardLayout.test.js
 import { describe, it, expect } from "vitest";
 import {
-  layoutCards, approxMeasure, SHAPES, FLOOR, INSET, rangeHeading, fileName,
+  layoutCards, approxMeasure, SHAPES, FLOOR, bodyRegion, INSET, rangeHeading, fileName,
 } from "../src/lib/cardLayout.js";
 
 const row = (i, date = "2026-11-01", over = {}) => ({
@@ -26,23 +26,30 @@ const nonProportional = (t, f) => String(t).length * (0.55 * f.size + 1.5);
 // Wide enough that the header's date and range lines must shrink too.
 const wideNonProportional = (t, f) => String(t).length * (0.75 * f.size + 4);
 
-// Every op inside the canvas, every row inside the text region.
+// Every op inside the canvas; headings inside the heading region, rows and day
+// sub-headings inside the body (which, on landscape, reaches under the crest).
 function expectInBounds(cards, shapeName, measure = approxMeasure) {
   const { w, h, region } = SHAPES[shapeName];
+  const body = bodyRegion(SHAPES[shapeName]);
   const right = region.x + region.w + 0.001;
   const bottom = region.y + region.h + 0.001;
+  const headCx = region.x + region.w / 2;
   for (const card of cards) {
     for (const o of card.ops) {
       if (o.op === "box") {
-        expect(o.x).toBeGreaterThanOrEqual(region.x);
-        expect(o.y).toBeGreaterThanOrEqual(region.y);
-        expect(o.x + o.w).toBeLessThanOrEqual(right);
+        expect(o.x).toBeGreaterThanOrEqual(body.x - 0.001);
+        expect(o.y).toBeGreaterThanOrEqual(body.top - 0.001);
+        expect(o.x + o.w).toBeLessThanOrEqual(body.x + body.w + 0.001);
         expect(o.y + o.h).toBeLessThanOrEqual(bottom);
       }
       if (o.op === "text") {
         const [a, b] = span(o, measure);
-        expect(a).toBeGreaterThanOrEqual(region.x - 0.001);
-        expect(b).toBeLessThanOrEqual(right);
+        // Header lines are centred on the heading region; everything else is body.
+        const inHead = o.align === "center" && Math.abs(o.x - headCx) < 0.001;
+        const lo = inHead ? region.x : body.x;
+        const hi = inHead ? right : body.x + body.w + 0.001;
+        expect(a).toBeGreaterThanOrEqual(lo - 0.001);
+        expect(b).toBeLessThanOrEqual(hi);
         expect(o.y).toBeGreaterThanOrEqual(region.y);
         expect(o.y).toBeLessThanOrEqual(bottom);
         expect(o.y).toBeLessThanOrEqual(h);
@@ -222,11 +229,14 @@ describe("fitting", () => {
             const cards = lay({ shape, measure, mode, rows: rs });
             expectInBounds(cards, shape, measure);
             const { region } = SHAPES[shape];
+            const body = bodyRegion(SHAPES[shape]);
+            const headCx = region.x + region.w / 2;
             for (const o of cards.flatMap((c) => c.ops)) {
               if (o.op !== "text" || o.align !== "center" || o.color === "#10244A") continue;
+              const area = Math.abs(o.x - headCx) < 0.001 ? region : body;
               const [a, b] = span(o, measure);
-              expect(a).toBeGreaterThanOrEqual(region.x + INSET - 0.001);
-              expect(b).toBeLessThanOrEqual(region.x + region.w - INSET + 0.001);
+              expect(a).toBeGreaterThanOrEqual(area.x + INSET - 0.001);
+              expect(b).toBeLessThanOrEqual(area.x + area.w - INSET + 0.001);
             }
           }
         }
@@ -262,5 +272,55 @@ describe("file names", () => {
 
   it("every card carries its file name", () => {
     expect(lay()[0].fileName).toBe("fixtures-2026-10-31-4x5.png");
+  });
+});
+
+describe("landscape body under the crest", () => {
+  const twoDays = [row(1, "2026-10-31"), row(2, "2026-10-31"), row(3, "2026-11-01")];
+
+  it("keeps the headings where they were", () => {
+    const { region } = SHAPES["4x3"];
+    const [card] = lay({ shape: "4x3", rows: twoDays });
+    const heads = card.ops.filter((o) => o.op === "text" && ["FIXTURES", "31 OCT – 1 NOV"].includes(o.text));
+    expect(heads).toHaveLength(2);
+    for (const o of heads) expect(o.x).toBe(region.x + region.w / 2);
+  });
+
+  it("moves rows and day sub-headings left, centred on the card", () => {
+    const { w } = SHAPES["4x3"];
+    const body = bodyRegion(SHAPES["4x3"]);
+    expect(body.x + body.w / 2).toBe(w / 2);
+    const [card] = lay({ shape: "4x3", rows: twoDays });
+    const rowsBoxes = card.ops.filter((o) => o.op === "box" && o.w === body.w);
+    expect(rowsBoxes).toHaveLength(3);
+    for (const b of rowsBoxes) expect(b.x).toBe(body.x);
+    const sat = card.ops.find((o) => o.text === "SATURDAY");
+    expect(sat.x).toBe(body.x + body.w / 2);
+  });
+
+  it("puts nothing beside the crest: above body.top, everything stays in the heading column", () => {
+    const { region } = SHAPES["4x3"];
+    const body = bodyRegion(SHAPES["4x3"]);
+    for (const mode of ["auto", "single", "perDay"]) {
+      for (const n of [1, 3, 8]) {
+        const cards = lay({ shape: "4x3", mode, rows: [...rows(n, "2026-10-31"), row(99, "2026-11-01")] });
+        for (const o of cards.flatMap((c) => c.ops)) {
+          if (o.op === "box") expect(o.y).toBeGreaterThanOrEqual(body.top - 0.001);
+          if (o.op === "text" && o.y - o.size / 2 < body.top) {
+            expect(span(o, approxMeasure)[0]).toBeGreaterThanOrEqual(region.x - 0.001);
+          }
+        }
+      }
+    }
+  });
+
+  it("a 7-game weekend still fits one landscape card", () => {
+    const weekend = [...rows(4, "2026-11-07"), ...rows(3, "2026-11-08").map((r) => ({ ...r, id: `b${r.id}` }))];
+    expect(lay({ shape: "4x3", mode: "single", rows: weekend })).toHaveLength(1);
+  });
+
+  it("portrait is unchanged: the body is the region", () => {
+    const { region } = SHAPES["4x5"];
+    expect(bodyRegion(SHAPES["4x5"])).toEqual({ x: region.x, w: region.w, top: region.y });
   });
 });

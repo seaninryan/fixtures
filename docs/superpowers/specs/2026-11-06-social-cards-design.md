@@ -205,6 +205,9 @@ the league's result.
 - Canva Sans stand-in: **Mulish**, chosen by the owner from a rendered comparison.
 - Final text regions after tuning against screenshots: portrait `{x:80, y:395, w:920,
   h:905}`, landscape `{x:400, y:115, w:900, h:815}`.
+- Landscape rows and day sub-headings use a separate **body** band, `x 274–1174`, which
+  centres them on the whole card under the crest. The headings stay in the region beside
+  the crest. No row box starts above y 360, so nothing sits beside the crest.
 - Split cards are balanced (12 rows → 6 + 6), not filled greedily.
 - Fits are verified by re-measuring, never assumed proportional.
 - Leave-off keys carry the kind (`fixtures:<id>` / `results:<id>`).
