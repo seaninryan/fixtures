@@ -21,12 +21,18 @@ export const BODY_FONT = "Mulish";
 // heading region. On landscape the headings sit beside the crest, but below it the card
 // is clear, so the rows are centred on the whole card - the owner's choice. No row box
 // starts above `top`, so none sits beside the crest (which ends about y 345).
+//
+// `heading` (optional) is the band the heading lines are centred in, when that differs
+// from the region. On landscape it is centred on the card, like the rows, and narrow
+// enough to clear the crest (which ends about x 355); there is no rule under it, and the
+// kind and day share a line so a one-day heading sits beside the crest, not below it.
 export const SHAPES = {
   "4x5": { w: 1080, h: 1350, region: { x: 80, y: 395, w: 920, h: 905 } },
   "4x3": {
     w: 1448, h: 1086,
     region: { x: 400, y: 115, w: 900, h: 815 },
     body: { x: 274, w: 900, top: 360 },
+    heading: { x: 364, w: 720, rule: false, joinDay: true },
   },
 };
 
@@ -48,9 +54,15 @@ const PALETTES = {
   },
 };
 
+// -> {x, w, rule, joinDay}: where the heading lines are centred, and how they are set.
+export function headingRegion(shape) {
+  const { region, heading } = shape;
+  return { x: region.x, w: region.w, rule: true, joinDay: false, ...heading };
+}
+
 // Full-size metrics, read off the owner's 1080-wide cards.
 const M = {
-  kind: 52, day: 72, date: 130, range: 100, lineGap: 1.12,
+  kind: 52, day: 72, joined: 60, date: 130, range: 100, lineGap: 1.12,
   ruleGap: 18, ruleWidth: 3, ruleLength: 680, afterHeader: 28,
   rowH: 90, rowGap: 30, rowText: 44, subdayH: 84, subday: 56,
   chipW: 130, chipH: 64, pad: 20, radius: 12,
@@ -145,11 +157,15 @@ function checked(measure) {
 
 function header(kind, groups, shape, part, measure, pal) {
   const { region } = shape;
-  const cx = region.x + region.w / 2;
+  const band = headingRegion(shape);
+  const cx = band.x + band.w / 2;
   const first = groups[0].date;
   const last = groups[groups.length - 1].date;
   const label = `${kind.toUpperCase()}${part ? ` (${part[0]}/${part[1]})` : ""}`;
-  const lines = first === last
+  const lines = first === last && band.joinDay
+    ? [{ text: `${label} · ${dayName(first)}`, family: BODY_FONT, size: M.joined, weight: 400 },
+       { text: dayMonth(first), family: DISPLAY_FONT, size: M.date, weight: 700 }]
+    : first === last
     ? [{ text: label, family: BODY_FONT, size: M.kind, weight: 400 },
        { text: dayName(first), family: BODY_FONT, size: M.day, weight: 400 },
        { text: dayMonth(first), family: DISPLAY_FONT, size: M.date, weight: 700 }]
@@ -158,14 +174,15 @@ function header(kind, groups, shape, part, measure, pal) {
   const ops = [];
   let y = region.y;
   for (const line of lines) {
-    const size = fitSize(line.text, line, region.w - 2 * INSET, measure);
+    const size = fitSize(line.text, line, band.w - 2 * INSET, measure);
     const h = size * M.lineGap;
     ops.push({ op: "text", x: cx, y: y + h / 2, text: line.text, family: line.family,
       size, weight: line.weight, color: pal.heading, align: "center" });
     y += h;
   }
+  if (!band.rule) return { ops, bottom: y + M.afterHeader };
   y += M.ruleGap;
-  const half = Math.min(M.ruleLength, region.w) / 2;
+  const half = Math.min(M.ruleLength, band.w) / 2;
   ops.push({ op: "rule", x1: cx - half, x2: cx + half, y, color: pal.rule, width: M.ruleWidth });
   return { ops, bottom: y + M.afterHeader };
 }
