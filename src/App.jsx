@@ -4,7 +4,7 @@ import ResultsTab from "./components/ResultsTab.jsx";
 import FormTab from "./components/FormTab.jsx";
 import ChangesTab from "./components/ChangesTab.jsx";
 import SquadsTab from "./components/SquadsTab.jsx";
-import { dataUrl, DEFAULT_DATA_URL, DATA_REPO } from "./lib/dataSource.js";
+import { dataUrl, DEFAULT_DATA_URL, DATA_REPO, HEAD_COMMIT_URL, WORKFLOW_URL, rawBaseAt } from "./lib/dataSource.js";
 import {
   initAuth, signIn, signOut, getAccessToken, accountEmail,
 } from "./lib/googleAuth.js";
@@ -18,11 +18,20 @@ const BASE = import.meta.env.VITE_DATA_URL || DEFAULT_DATA_URL;
 
 // no-cache, not no-store: the CDN copy is fine to revalidate against, we just must not
 // let the browser serve yesterday's snapshot out of its own cache without asking.
-async function loadJson(name) {
-  const res = await fetch(dataUrl(name, BASE), { cache: "no-cache" });
+async function loadJson(name, base) {
+  const res = await fetch(dataUrl(name, base), { cache: "no-cache" });
   if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
   return res.json();
 }
+
+async function headSha() {
+  const res = await fetch(HEAD_COMMIT_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error(`head commit: HTTP ${res.status}`);
+  return (await res.json()).sha;
+}
+
+const SYNC_POLL_MS = 15_000;
+const SYNC_POLL_LIMIT = 40; // ten minutes
 
 export default function App() {
   // "checking" | "signed-out" | "not-owner" | "ok". See src/lib/owner.js: this gate
@@ -31,6 +40,29 @@ export default function App() {
   const [tab, setTab] = useState("Fixtures");
   const [state, setState] = useState({ status: "loading" });
   const [config, setConfig] = useState({ version: 1, teams: {} });
+  // Where the JSON is read from. BASE normally; a commit-pinned base after a sync.
+  const [base, setBase] = useState(BASE);
+  // "idle" | "waiting" | "timeout" | "failed"
+  const [sync, setSync] = useState("idle");
+
+  // Opens the workflow page, then watches the data repo's head. The scan always commits
+  // (fetchedAt moves every run), so a new head means the run finished.
+  const startSync = useCallback(async () => {
+    window.open(WORKFLOW_URL, "_blank", "noopener");
+    let start;
+    try { start = await headSha(); } catch { return setSync("failed"); }
+    setSync("waiting");
+    for (let i = 0; i < SYNC_POLL_LIMIT; i += 1) {
+      await new Promise((r) => setTimeout(r, SYNC_POLL_MS));
+      let sha;
+      try { sha = await headSha(); } catch { continue; }
+      if (sha !== start) {
+        setSync("idle");
+        return setBase(rawBaseAt(sha));
+      }
+    }
+    return setSync("timeout");
+  }, []);
 
   const check = useCallback(async (interactive) => {
     // Never a silent token request at load - see googleAuth.js: GIS may never answer
@@ -72,13 +104,13 @@ export default function App() {
         // the whole site.
         const [snapshot, history, loaded, results, faiSnapshot, faiHistory, faiResults] =
           await Promise.all([
-            loadJson("latest.json"),
-            loadJson("changes.json").catch(() => []),
-            loadJson("teams.json").catch(() => ({ version: 1, teams: {} })),
-            loadJson("results.json").catch(() => null),
-            loadJson("latest-fai.json").catch(() => ({ fixtures: [] })),
-            loadJson("changes-fai.json").catch(() => []),
-            loadJson("results-fai.json").catch(() => null),
+            loadJson("latest.json", base),
+            loadJson("changes.json", base).catch(() => []),
+            loadJson("teams.json", base).catch(() => ({ version: 1, teams: {} })),
+            loadJson("results.json", base).catch(() => null),
+            loadJson("latest-fai.json", base).catch(() => ({ fixtures: [] })),
+            loadJson("changes-fai.json", base).catch(() => []),
+            loadJson("results-fai.json", base).catch(() => null),
           ]);
         if (!live) return;
         setConfig(loaded);
@@ -93,7 +125,7 @@ export default function App() {
       }
     })();
     return () => { live = false; };
-  }, [gate]);
+  }, [gate, base]);
 
   if (gate === "checking") {
     return <main className="wrap"><p className="dim">Loading…</p></main>;
@@ -189,7 +221,14 @@ export default function App() {
       )}
       {tab === "Changes" && <ChangesTab history={history} fixtures={fixtures} config={config} />}
       {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} onChange={setConfig} />}
-      <footer className="dim">Updated {updated?.slice(0, 10)}</footer>
+      <footer className="dim row">
+        <span>Updated {updated?.slice(0, 10)}</span>
+        <button className="chip" onClick={startSync} disabled={sync === "waiting"}>
+          {sync === "waiting" ? "Waiting for the scan…" : "Sync now"}
+        </button>
+        {sync === "timeout" && <span>No new data yet — the run may still be going. Reload later.</span>}
+        {sync === "failed" && <span>Could not reach GitHub to watch for the run.</span>}
+      </footer>
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   DATA_REPO, DATA_BRANCH, DEFAULT_DATA_URL, EDIT_TEAMS_URL, dataUrl,
+  rawBaseAt, HEAD_COMMIT_URL, WORKFLOW_URL,
 } from "../src/lib/dataSource.js";
 
 describe("DEFAULT_DATA_URL", () => {
@@ -47,5 +48,22 @@ describe("EDIT_TEAMS_URL", () => {
   it("deep links to teams.json in the data repo", () => {
     expect(EDIT_TEAMS_URL)
       .toBe(`https://github.com/${DATA_REPO}/edit/${DATA_BRANCH}/teams.json`);
+  });
+});
+
+describe("sync URLs", () => {
+  it("pins raw reads to a commit, which the CDN cannot serve stale", () => {
+    expect(rawBaseAt("abc123"))
+      .toBe("https://raw.githubusercontent.com/seaninryan/fixtures-data/abc123/");
+  });
+
+  it("reads the branch head from the API host, which sends CORS headers", () => {
+    expect(HEAD_COMMIT_URL)
+      .toBe("https://api.github.com/repos/seaninryan/fixtures-data/commits/main");
+  });
+
+  it("links the workflow page where Run workflow lives", () => {
+    expect(WORKFLOW_URL)
+      .toBe("https://github.com/seaninryan/fixtures-data/actions/workflows/daily-check.yml");
   });
 });

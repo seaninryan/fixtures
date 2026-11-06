@@ -28,3 +28,20 @@ export const EDIT_TEAMS_URL =
 export function dataUrl(name, base = DEFAULT_DATA_URL) {
   return `${base.endsWith("/") ? base : `${base}/`}${name}`;
 }
+
+// "Sync now". The cron runs at 06:17 UTC, so a Sunday's results would otherwise land on
+// Monday. The site cannot run the scan itself (no CORS from either league, and the FAI
+// key is a secret), so it links to the workflow and the owner presses Run workflow.
+export const WORKFLOW_URL =
+  `https://github.com/${DATA_REPO}/actions/workflows/daily-check.yml`;
+
+// Unauthenticated, CORS-enabled, 60 requests an hour per IP. The poll below stays far
+// under that.
+export const HEAD_COMMIT_URL =
+  `https://api.github.com/repos/${DATA_REPO}/commits/${DATA_BRANCH}`;
+
+// The branch URL is CDN-cached for about five minutes, so straight after a sync it can
+// serve the OLD file. A commit-pinned URL is a different cache key and is never stale.
+export function rawBaseAt(sha) {
+  return `https://raw.githubusercontent.com/${DATA_REPO}/${sha}/`;
+}
