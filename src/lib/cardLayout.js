@@ -17,8 +17,8 @@ export const BODY_FONT = "Mulish";
 // crest (portrait: top-centre; landscape: top-left corner) and inside the results card's
 // football border. Moving the crest in Canva means editing these numbers.
 export const SHAPES = {
-  "4x5": { w: 1080, h: 1350, region: { x: 80, y: 370, w: 920, h: 950 } },
-  "4x3": { w: 1448, h: 1086, region: { x: 400, y: 60, w: 920, h: 890 } },
+  "4x5": { w: 1080, h: 1350, region: { x: 80, y: 395, w: 920, h: 905 } },
+  "4x3": { w: 1448, h: 1086, region: { x: 400, y: 115, w: 900, h: 815 } },
 };
 
 const PALETTES = {
@@ -35,7 +35,7 @@ const PALETTES = {
 
 // Full-size metrics, read off the owner's 1080-wide cards.
 const M = {
-  kind: 52, day: 72, date: 130, range: 110, lineGap: 1.12,
+  kind: 52, day: 72, date: 130, range: 100, lineGap: 1.12,
   ruleGap: 18, ruleWidth: 3, ruleLength: 680, afterHeader: 28,
   rowH: 90, rowGap: 30, rowText: 44, subdayH: 84, subday: 56,
   chipW: 130, chipH: 64, pad: 20, radius: 12,
