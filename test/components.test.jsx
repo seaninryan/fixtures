@@ -6,6 +6,8 @@ import ChangesTab from "../src/components/ChangesTab.jsx";
 import SquadsTab from "../src/components/SquadsTab.jsx";
 import FormTab from "../src/components/FormTab.jsx";
 import GraphicsTab from "../src/components/GraphicsTab.jsx";
+import ConfigSave from "../src/components/ConfigSave.jsx";
+import { setOpponent } from "../src/lib/opponents.js";
 import { roundup } from "../src/lib/results.js";
 
 const config = { version: 1, teams: { "235380": { label: "U14A Boys", color: "#1f6feb" } } };
@@ -345,6 +347,31 @@ describe("ChangesTab", () => {
   });
 });
 
+describe("ChangesTab opponent names", () => {
+  const lettered = { ...fixtures[0], opponent: "Knocknacarra D" };
+
+  it("shows a cleaned opponent on the fixture line", () => {
+    const history = [{ checkedAt: "2026-08-25T06:00:00Z", changes: [{
+      type: "moved", fid: "1", teamId: "235380", fixture: lettered,
+      from: { date: "2026-08-29", time: "12:00" }, to: { date: "2026-08-29", time: "16:00" },
+      comment: "",
+    }] }];
+    const html = renderToStaticMarkup(<ChangesTab history={history} config={config} />);
+    expect(html).toContain("v Knocknacarra<");
+    expect(html).not.toContain("Knocknacarra D");
+  });
+
+  it("keeps the RAW names in an opponent change's summary", () => {
+    const history = [{ checkedAt: "2026-08-25T06:00:00Z", changes: [{
+      type: "opponent", fid: "1", teamId: "235380", fixture: lettered, comment: "",
+      from: { opponent: "Knocknacarra C", competition: "X" },
+      to: { opponent: "Knocknacarra D", competition: "X" },
+    }] }];
+    const html = renderToStaticMarkup(<ChangesTab history={history} config={config} />);
+    expect(html).toContain("Knocknacarra C → Knocknacarra D");
+  });
+});
+
 describe("SquadsTab", () => {
   it("lists every squad with its label", () => {
     const html = renderToStaticMarkup(
@@ -415,6 +442,45 @@ describe("GraphicsTab", () => {
     expect(html).toContain("Leave off");
   });
 
+  it("lists each card's games under it, with the opponent editable", () => {
+    const two = [
+      { ...fixtures[0], fid: "1", date: "2026-08-29", opponent: "Knocknacarra D" },
+      { ...fixtures[0], fid: "2", date: "2026-08-30", opponent: "Team X Junior Men's Team" },
+    ];
+    const cfg = { ...config, opponents: { "Team X Junior Men's Team": "Team X" } };
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={two} awaiting={[]} results={{ results: [] }} config={cfg} savedConfig={cfg}
+                   onConfigChange={() => {}} today="2026-08-25" now={{ date: "2026-08-25", time: "10:00" }} />,
+    );
+    expect(html).toContain('class="cardrows"');
+    expect(html).toContain('value="Knocknacarra"');
+    expect(html).toContain('value="Team X"');
+    expect(html).toContain('title="League name: Knocknacarra D"');
+    expect(html).not.toContain(">Rows<");
+  });
+
+  it("shows the unsaved bar when renames differ from teams.json", () => {
+    const cfg = { ...config, opponents: { "St Bernards": "Bernards" } };
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]} results={{ results: [] }} config={cfg} savedConfig={config}
+                   onConfigChange={() => {}} today="2026-08-25" now={{ date: "2026-08-25", time: "10:00" }} />,
+    );
+    expect(html).toContain("1 unsaved name change");
+  });
+
+  // A pre-filled pending game is shown - and stored, once scored - under its display
+  // name, or the hand-entered card would say "Knocknacarra D" beside an official
+  // "Knocknacarra".
+  it("shows a pending game's opponent by its display name", () => {
+    const lettered = [{ ...fixtures[0], opponent: "Knocknacarra D" }];
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={lettered} awaiting={[]} results={{ results: [] }} config={config}
+                   today="2026-08-30" now={{ date: "2026-08-30", time: "10:00" }} initialKind="Results" />,
+    );
+    expect(html).toContain("U14A Boys v Knocknacarra — 2026-08-29");
+    expect(html).not.toContain("Knocknacarra D —");
+  });
+
   it("says so when the results could not be loaded", () => {
     const html = renderToStaticMarkup(
       <GraphicsTab fixtures={fixtures} awaiting={[]} results={null}
@@ -431,7 +497,9 @@ describe("GraphicsTab", () => {
                    config={config} today="2026-08-30" now={played} initialKind="Results" />,
     );
     expect(html).toContain("results-2026-08-28-4x5.png");
-    expect(html).toContain("U14A Boys 3-1 St Bernards");
+    // The card's own section lists the game, score included.
+    expect(html).toContain('value="St Bernards"');
+    expect(html).toContain('<span class="dim"> 3-1</span>');
     expect(html).toContain("U14A Boys v St Bernards — 2026-08-29");
   });
 
@@ -465,5 +533,86 @@ describe("GraphicsTab", () => {
                    initialKind="Results" />,
     );
     expect(html).toContain('<option value="235380">U14A Boys</option>');
+  });
+});
+
+// The bar's own wording, not the word "unsaved", which the cache note also uses.
+const UNSAVED_BAR = /<b>(\d+ unsaved name changes?|Unsaved changes)<\/b>/;
+
+describe("ConfigSave", () => {
+  const saved = { version: 1, teams: {} };
+
+  it("says nothing is unsaved when the config matches", () => {
+    const html = renderToStaticMarkup(<ConfigSave config={saved} savedConfig={saved} />);
+    expect(html).toContain("Copy JSON");
+    expect(html).not.toMatch(UNSAVED_BAR);
+  });
+
+  it("counts unsaved opponent renames", () => {
+    const edited = { ...saved, opponents: { "Gort B": "Gort Utd", "Team X Junior": "Team X" } };
+    const html = renderToStaticMarkup(<ConfigSave config={edited} savedConfig={saved} />);
+    expect(html).toContain("2 unsaved name changes");
+  });
+
+  // seedConfig omits an empty `opponents`, so a rename added then cleared must leave the
+  // config byte-identical to teams.json - not carrying a phantom `opponents: {}`.
+  it("is not dirty after a rename is added and cleared again", () => {
+    const roundTrip = setOpponent(setOpponent(saved, "Gort B", "Gort Utd"), "Gort B", "");
+    const html = renderToStaticMarkup(<ConfigSave config={roundTrip} savedConfig={saved} />);
+    expect(html).not.toMatch(UNSAVED_BAR);
+  });
+});
+
+describe("ConfigSave review fixes", () => {
+  it("ignores key order when deciding what is unsaved", () => {
+    const saved = { version: 1, teams: {}, opponents: { "A X": "Alpha", "B Y": "Beta" } };
+    const edited = { teams: {}, version: 1, opponents: { "B Y": "Beta", "A X": "Alpha" } };
+    const html = renderToStaticMarkup(<ConfigSave config={edited} savedConfig={saved} />);
+    expect(html).not.toMatch(UNSAVED_BAR);
+  });
+
+  // Copy JSON here would paste an empty squad list over the real teams.json.
+  it("offers no copy when teams.json could not be loaded", () => {
+    const html = renderToStaticMarkup(<ConfigSave config={{ version: 1, teams: {} }} savedConfig={null} />);
+    expect(html).toContain("teams.json could not be loaded");
+    expect(html).not.toContain("Copy JSON");
+  });
+
+  it("tells the owner to reload after a Sync now", () => {
+    const html = renderToStaticMarkup(<ConfigSave config={{ version: 1 }} savedConfig={{ version: 1 }} />);
+    expect(html).toContain("If you used Sync now after saving, reload the page");
+  });
+});
+
+describe("editing while teams.json failed to load", () => {
+  const now = { date: "2026-08-25", time: "10:00" };
+
+  it("disables the opponent inputs on the Graphics tab", () => {
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]} results={{ results: [] }} config={config} savedConfig={null}
+                   onConfigChange={() => {}} today="2026-08-25" now={now} />,
+    );
+    expect(html).toMatch(/<input class="opp"[^>]* disabled=""/);
+    expect(html).toContain("teams.json could not be loaded");
+  });
+
+  it("disables the Squads tab inputs", () => {
+    const html = renderToStaticMarkup(
+      <SquadsTab fixtures={fixtures} config={config} savedConfig={null} onChange={() => {}} />,
+    );
+    expect(html).toMatch(/<input type="color"[^>]* disabled=""/);
+    expect(html).toMatch(/<input class="label-input"[^>]* disabled=""/);
+  });
+});
+
+describe("SquadsTab opponents", () => {
+  it("lists opponent renames raw -> shown", () => {
+    const cfg = { ...config, opponents: { "Team X Junior Men's Team": "Team X" } };
+    const html = renderToStaticMarkup(
+      <SquadsTab fixtures={fixtures} config={cfg} savedConfig={cfg} onChange={() => {}} />,
+    );
+    expect(html).toContain("Opponent names");
+    expect(html).toContain("Team X Junior Men&#x27;s Team");
+    expect(html).toContain("Team X");
   });
 });

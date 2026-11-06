@@ -282,7 +282,7 @@ describe("changeReport labels resolved over every fixture", () => {
   // then corrects the A side's parents about the B side's game.
   it("keeps the B side's letter when only the B side's fixture moved", () => {
     const { text } = changeReport([bMoved], {}, { fixtures: [aSide, bSide] });
-    expect(text).toContain("U14B Boys @ Cregmore/Claregalway C");
+    expect(text).toContain("U14B Boys @ Cregmore/Claregalway");
     expect(text).not.toContain("U14 Boys @");
   });
 
@@ -294,13 +294,13 @@ describe("changeReport labels resolved over every fixture", () => {
 
   // The two-argument call still has to work, just degraded - documented, not a promise.
   it("falls back to the changed fixtures when the caller supplies no fixture list", () => {
-    expect(changeReport([bMoved], {}).text).toContain("U14 Boys @ Cregmore/Claregalway C");
+    expect(changeReport([bMoved], {}).text).toContain("U14 Boys @ Cregmore/Claregalway");
   });
 
   it("still lets a configured label beat derivation", () => {
     const { text } = changeReport([bMoved], { teams: { "254061": { label: "U14 Bs" } } },
       { fixtures: [aSide, bSide] });
-    expect(text).toContain("U14 Bs @ Cregmore/Claregalway C");
+    expect(text).toContain("U14 Bs @ Cregmore/Claregalway");
   });
 });
 
@@ -395,7 +395,7 @@ VENUE CHANGE
   Craughwell  ->  Colemanstown
 
 CORRECTION
-  U14A Boys v Colga B
+  U14A Boys v Colga
   Sat 19 Sep 13:00
   St Bernards (GFA U16 Division 1)
   ->  Colga B (GFA U16 Division 2)
@@ -477,12 +477,12 @@ describe("changeReport end to end on the real capture", () => {
   GFA U16 Girls Division 1
 
 MOVED
-  U14B Boys @ Cregmore/Claregalway C
+  U14B Boys @ Cregmore/Claregalway
   Sat 29 Aug 12:00  ->  Sat 29 Aug 16:00
   League note: "Colemanstown requested kickoff time"
 
 VENUE CHANGE
-  U14 Girls @ Colga B
+  U14 Girls @ Colga
   Sun 30 Aug 12:00
   Clarinbridge  ->  Colemanstown
   League note: "Pitch unplayable at Craughwell"
@@ -514,5 +514,35 @@ Site: https://craughwellunited.example/`);
     expect(one).toContain("1 squad still needs a label");
     expect(two).toContain("2 squads still need a label");
     expect(two).not.toContain("squads still needs");
+  });
+});
+
+describe("changeReport opponent names", () => {
+  const lettered = { ...moved, fixture: { ...moved.fixture, opponent: "Knocknacarra D" } };
+
+  it("cleans the opponent on a fixture line", () => {
+    const { text } = changeReport([lettered], config);
+    expect(text).toContain("U14A Boys v Knocknacarra");
+    expect(text).not.toContain("Knocknacarra D");
+  });
+
+  it("uses a configured override on a fixture line", () => {
+    const renamed = { ...moved, fixture: { ...moved.fixture, opponent: "Team X Junior Men's Team" } };
+    const { text } = changeReport([renamed], { ...config, opponents: { "Team X Junior Men's Team": "Team X" } });
+    expect(text).toContain("v Team X");
+  });
+
+  // RAW on purpose: the change IS the feed renaming the opponent.
+  it("keeps both RAW names in an opponent correction's from/to lines", () => {
+    const change = {
+      ...opponent,
+      fixture: { ...opponent.fixture, opponent: "Knocknacarra D" },
+      from: { opponent: "Knocknacarra C", competition: "GFA U16 Division 1" },
+      to: { opponent: "Knocknacarra D", competition: "GFA U16 Division 1" },
+    };
+    const { text } = changeReport([change], config);
+    expect(text).toContain("Knocknacarra C (GFA U16 Division 1)");
+    expect(text).toContain("->  Knocknacarra D (GFA U16 Division 1)");
+    expect(text).toContain("v Knocknacarra\n");
   });
 });

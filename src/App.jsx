@@ -76,6 +76,8 @@ export default function App() {
   const [tab, setTab] = useState("Fixtures");
   const [state, setState] = useState({ status: "loading" });
   const [config, setConfig] = useState({ version: 1, teams: {} });
+  // What teams.json holds, so the tabs can tell what is unsaved.
+  const [savedConfig, setSavedConfig] = useState({ version: 1, teams: {} });
   // Where the JSON is read from. BASE normally; a commit-pinned base after a sync.
   const [base, setBase] = useState(BASE);
   // "idle" | "waiting" | "timeout" | "failed" | "ratelimited"
@@ -156,7 +158,9 @@ export default function App() {
           await Promise.all([
             loadJson("latest.json", base),
             loadJson("changes.json", base).catch(() => []),
-            loadJson("teams.json", base).catch(() => ({ version: 1, teams: {} })),
+            // null, not an empty config: an empty one would be offered back as the thing
+            // to paste over teams.json, wiping every label. ConfigSave refuses on null.
+            loadJson("teams.json", base).catch(() => null),
             loadJson("results.json", base).catch(() => null),
             loadJson("latest-fai.json", base).catch(() => ({ fixtures: [] })),
             loadJson("changes-fai.json", base).catch(() => []),
@@ -164,7 +168,7 @@ export default function App() {
           ]);
         if (!live) return;
         // A sync reload must not discard unsaved Squads-tab edits.
-        if (base === BASE) setConfig(loaded);
+        if (base === BASE) { setConfig(loaded ?? { version: 1, teams: {} }); setSavedConfig(loaded); }
         setState({
           status: "ready", snapshot, history, results, faiSnapshot, faiHistory, faiResults,
         });
@@ -261,13 +265,14 @@ export default function App() {
       )}
       {tab === "Graphics" && (
         <GraphicsTab fixtures={fixtures} awaiting={awaiting} results={results}
-                     config={config} today={today} now={now} />
+                     config={config} savedConfig={savedConfig} onConfigChange={setConfig}
+                     today={today} now={now} />
       )}
       {tab === "Form" && (
         <FormTab results={results} fixtures={fixtures} config={config} today={today} />
       )}
       {tab === "Changes" && <ChangesTab history={history} fixtures={fixtures} config={config} />}
-      {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} onChange={setConfig} />}
+      {tab === "Squads" && <SquadsTab fixtures={fixtures} config={config} savedConfig={savedConfig} onChange={setConfig} />}
       <footer className="dim row">
         <span>Updated {updated?.slice(0, 10)}</span>
         <button className="chip" onClick={startSync} disabled={sync === "waiting"}>

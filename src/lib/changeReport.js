@@ -1,6 +1,7 @@
 // Pure. Change list -> the plain-text alert email.
 import { SEVERITY } from "./diff.js";
 import { resolveTeams } from "./teams.js";
+import { opponentName } from "./opponents.js";
 
 const HEADINGS = {
   cancelled: "CANCELLED", moved: "MOVED", venue: "VENUE CHANGE",
@@ -25,15 +26,15 @@ function when(date, time) {
   return `${DAYS_SHORT[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS_SHORT[d.getUTCMonth()]} ${time}`;
 }
 
-const describe = (change, labels) => {
+const describe = (change, labels, config) => {
   const f = change.fixture;
   const label = labels[change.teamId] ?? f.ourTeam;
-  return `${label} ${f.isHome ? "v" : "@"} ${f.opponent}`;
+  return `${label} ${f.isHome ? "v" : "@"} ${opponentName(f.opponent, config)}`;
 };
 
-function detail(change, labels) {
+function detail(change, labels, config) {
   const f = change.fixture;
-  const lines = [`  ${describe(change, labels)}`];
+  const lines = [`  ${describe(change, labels, config)}`];
   switch (change.type) {
     case "moved":
       lines.push(`  ${when(change.from.date, change.from.time)}  ->  ${when(change.to.date, change.to.time)}`);
@@ -43,6 +44,8 @@ function detail(change, labels) {
       lines.push(`  ${change.from || "(none)"}  ->  ${change.to || "(none)"}`);
       break;
     case "opponent":
+      // RAW on purpose: this change IS the feed renaming the opponent, and cleaning both
+      // sides could print "Knocknacarra -> Knocknacarra".
       lines.push(`  ${when(f.date, f.time)}`);
       lines.push(`  ${change.from.opponent} (${change.from.competition})`);
       lines.push(`  ->  ${change.to.opponent} (${change.to.competition})`);
@@ -78,7 +81,7 @@ export function changeReport(changes, config, opts = {}) {
   for (const type of SEVERITY) {
     const of = changes.filter((c) => c.type === type);
     if (of.length === 0) continue;
-    sections.push(`${HEADINGS[type]}\n${of.map((c) => detail(c, labels)).join("\n\n")}`);
+    sections.push(`${HEADINGS[type]}\n${of.map((c) => detail(c, labels, config)).join("\n\n")}`);
   }
 
   const footer = [];

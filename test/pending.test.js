@@ -158,3 +158,17 @@ describe("awaiting", () => {
     expect(lines[0].text).toMatch(/^U14A Boys @ Colga/);
   });
 });
+
+describe("opponent names in the pending list", () => {
+  it("strips the opponent's team letter", () => {
+    const [line] = pendingLines([fixture({ opponent: "Knocknacarra D" })], [], config, now);
+    expect(line.text).toContain("@ Knocknacarra —");
+    expect(line.text).not.toContain("Knocknacarra D");
+  });
+
+  it("uses a configured override", () => {
+    const withRename = { ...config, opponents: { "Team X Junior Men's Team": "Team X" } };
+    const [line] = pendingLines([fixture({ opponent: "Team X Junior Men's Team" })], [], withRename, now);
+    expect(line.text).toContain("@ Team X —");
+  });
+});

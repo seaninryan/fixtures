@@ -14,6 +14,7 @@ import { resultWindowRange } from "./window.js";
 import { resolveTeams, fillLabelGaps } from "./teams.js";
 import { squadColor } from "./squadColors.js";
 import { shortDate } from "./announce.js";
+import { opponentName } from "./opponents.js";
 
 // How far back a pending game is still worth showing. The snapshot holds what the league
 // still lists and `awaiting` holds played games the scan carries forward; this bounds a
@@ -76,7 +77,7 @@ export function pendingLines(fixtures, results, config, now, awaiting = []) {
     kind: "pending",
     // v / @ and the date format both come from announce.js, so a pending line and a
     // fixture line read the same way.
-    text: `${labels[f.teamId] ?? f.ourTeam} ${f.isHome ? "v" : "@"} ${f.opponent}` +
+    text: `${labels[f.teamId] ?? f.ourTeam} ${f.isHome ? "v" : "@"} ${opponentName(f.opponent, config)}` +
       ` — ${shortDate(f.date)}, ${f.time}`,
     teamId: f.teamId,
     color: squadColor(f.teamId, config).bg,

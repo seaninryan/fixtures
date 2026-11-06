@@ -81,6 +81,12 @@ lives in a unit-tested pure function; new derivations belong in lib with tests.
   stands in for Canva Sans, which cannot be embedded; League Spartan is the real thing.
   To check the canvas output, render cards in a scratch Vite harness and screenshot with
   headless Chrome - the app itself is behind the owner gate.
+- `opponents.js` — how an opponent's name is SHOWN: a trailing team letter (A–H) and a
+  COMET season code are stripped, and `teams.json` `opponents` (keyed on the raw feed
+  name) overrides. Every display surface goes through `opponentName`; `diff.js` and the
+  stored fixtures keep the raw name. `cardSections.js` groups the Graphics tab's rows,
+  left-off ones included, under the card that covers their date. `ConfigSave.jsx` is the
+  one copy-JSON / edit-on-GitHub control, shared by the Squads and Graphics tabs.
 
 "Sync now" opens the data repo's workflow page; the site then polls the latest commit
 touching `latest.json` and reloads at that commit's raw URL, because the branch URL is
@@ -169,6 +175,11 @@ offline runs.
   browser's localStorage, never `results.json`, the Form tab or the email. A forfeit left
   off a card still counts in Form, because it is the league's result. Leave-off keys carry
   the kind, so leaving a game off Friday's fixtures card does not hide Sunday's score.
+- **Opponent renames are display only.** Identity and change detection use the raw feed
+  name, so renaming never raises an alert, and an OPPONENT CHANGE prints raw names -
+  cleaning both sides could print "Knocknacarra -> Knocknacarra". `seedConfig` must carry
+  `opponents` through, or the next scan silently drops every rename; `setOpponent` drops
+  the key when empty so an add-then-clear is not reported as unsaved.
 - **`awaiting` is never counted by the scan guards and never diffed.** It holds games that
   have already left the feed; the guards are about the feed. A malformed carried entry is
   dropped, never carried - it would otherwise live forever and crash `sortFixtures`.

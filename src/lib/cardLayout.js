@@ -243,7 +243,8 @@ function buildCard(kind, groups, shapeName, measure, part) {
   const from = groups[0].date;
   const to = groups[groups.length - 1].date;
   return { ops, scale: s, width: shape.w, height: shape.h,
-    fileName: fileName(kind, from, to, shapeName, part) };
+    fileName: fileName(kind, from, to, shapeName, part),
+    rowIds: groups.flatMap((g) => g.rows.map((r) => r.id)), from, to };
 }
 
 // Greedy pages that each fit at FLOOR. The header is sized for a part label throughout,
