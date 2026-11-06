@@ -1173,7 +1173,7 @@ Expected: FAIL — module not found.
 // League Spartan matches the owner's Canva cards exactly. Canva Sans cannot be embedded
 // outside Canva, so BODY_FONT is a free stand-in the owner chose by eye.
 export const DISPLAY_FONT = "League Spartan";
-export const BODY_FONT = "Open Sans";
+export const BODY_FONT = "Mulish";
 
 // Canvas = the background's own pixel size. `region` is where text may go, clear of the
 // crest (portrait: top-centre; landscape: top-left corner) and inside the results card's
@@ -1436,7 +1436,7 @@ This is a checkpoint for the controller — the owner picks. Their sample cards 
 
 - [ ] **Step 3: Load the fonts**
 
-In `index.html`, inside `<head>` after the theme-color meta, add (substituting the chosen family for `Open+Sans` if different):
+In `index.html`, inside `<head>` after the theme-color meta, add (the owner chose Mulish on 2026-11-06 from the comparison):
 
 ```html
     <!-- Fonts for the social cards (src/lib/cardLayout.js). The canvas draws with them,
@@ -1444,7 +1444,7 @@ In `index.html`, inside `<head>` after the theme-color meta, add (substituting t
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700&family=Open+Sans:wght@400;700&display=swap" />
+          href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700&family=Mulish:wght@400;700&display=swap" />
 ```
 
 If the owner chose a different family, set `BODY_FONT` in `src/lib/cardLayout.js` to it.
