@@ -1699,7 +1699,14 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
 
   // Memoised so the cards keep their identity across renders - CardPreview redraws
   // whenever its `card` changes.
-  const rows = useMemo(() => applyLeaveOff(allRows, leaveOff), [allRows, leaveOff]);
+  // Keys carry the kind: a fixture row and its result share a fid, and leaving a game off
+  // Friday's fixtures card must not hide its score on Sunday's results card.
+  const leaveKey = (id) => `${isResults ? "results" : "fixtures"}:${id}`;
+  const rows = useMemo(
+    () => applyLeaveOff(allRows.map((r) => ({ ...r, id: leaveKey(r.id) })), leaveOff)
+      .map((r) => ({ ...r, id: r.id.slice(r.id.indexOf(":") + 1) })),
+    [allRows, leaveOff, isResults],
+  );
   const lower = isResults ? "results" : "fixtures";
   const cardsByShape = useMemo(() => Object.fromEntries(SHAPE_NAMES.map((s) =>
     [s, layoutCards({ kind: lower, rows, mode, shape: s, measure })])), [lower, rows, mode, measure]);
@@ -1774,7 +1781,7 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
         <p className="phead">Rows</p>
         {allRows.map((r) => (
           <label key={r.id} className="aline">
-            <input type="checkbox" checked={leaveOff.includes(r.id)} onChange={() => toggleLeaveOff(r.id)} />
+            <input type="checkbox" checked={leaveOff.includes(leaveKey(r.id))} onChange={() => toggleLeaveOff(leaveKey(r.id))} />
             {" "}Leave off — {r.segments.map((s) => s.text).join("")}
           </label>
         ))}
