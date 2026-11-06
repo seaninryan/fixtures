@@ -172,6 +172,8 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
   }
   function saveManual(next) { setManual(next); writeLs(LS_MANUAL, next); }
   const rename = (raw, name) => onConfigChange?.(setOpponent(config, raw, name));
+  // teams.json failed to load: a rename could only be saved by overwriting it.
+  const locked = savedConfig === null;
   const toggleRow = (id) => toggleLeaveOff(leaveKey(id));
   function startDownload(shapes) {
     setDownloadError(null);
@@ -234,7 +236,7 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
             {cards.map((card, i) => (
               <div key={card.fileName} className="cardcol">
                 <CardPreview kind={lower} shape={shape} card={card} fontsReady={fontsReady} />
-                <CardRows entries={sections[i]?.rows ?? []} onToggle={toggleRow} onRename={rename} />
+                <CardRows entries={sections[i]?.rows ?? []} onToggle={toggleRow} onRename={rename} locked={locked} />
               </div>
             ))}
           </div>
@@ -246,7 +248,7 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
         <div className="card">
           <p className="phead">Not on any card</p>
           <CardRows entries={orphans.map((row) => ({ row, leftOff: true }))}
-                    onToggle={toggleRow} onRename={rename} />
+                    onToggle={toggleRow} onRename={rename} locked={locked} />
         </div>
       )}
       {allRows.length > 0 && <ConfigSave config={config} savedConfig={savedConfig} />}
@@ -255,7 +257,7 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
         <div className="card warn">
           {merged.conflicts.map(({ entry, official: o }) => (
             <p key={entry.id}>
-              The league scored {opponentName(entry.opponent, config)} on {entry.date} as {o.ourScore}-{o.theirScore};
+              The league scored {entry.opponent} on {entry.date} as {o.ourScore}-{o.theirScore};
               you entered {entry.ourScore}-{entry.theirScore}. A card you posted may be wrong.
             </p>
           ))}
@@ -272,7 +274,7 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
 
 // One card's games: Leave off, and the opponent renamed in place. The input commits on
 // blur or Enter, not per keystroke - each commit re-lays out and redraws every card.
-function CardRows({ entries, onToggle, onRename }) {
+function CardRows({ entries, onToggle, onRename, locked }) {
   if (entries.length === 0) return null;
   return (
     <ul className="cardrows">
@@ -286,7 +288,7 @@ function CardRows({ entries, onToggle, onRename }) {
             {row.chip ? <span className="dim">{row.chip} </span> : null}
             <b>{row.meta.label}</b> {row.meta.versus}{" "}
             {row.meta.editable
-              ? <OpponentInput raw={row.meta.opponentRaw} shown={row.meta.opponent} onRename={onRename} />
+              ? <OpponentInput raw={row.meta.opponentRaw} shown={row.meta.opponent} onRename={onRename} disabled={locked} />
               : <span>{row.meta.opponent}</span>}
             {row.meta.score ? <span className="dim"> {row.meta.score}</span> : null}
           </span>
@@ -296,12 +298,18 @@ function CardRows({ entries, onToggle, onRename }) {
   );
 }
 
-function OpponentInput({ raw, shown, onRename }) {
+function OpponentInput({ raw, shown, onRename, disabled }) {
   const [draft, setDraft] = useState(shown);
   useEffect(() => { setDraft(shown); }, [shown]);
-  const commit = () => { if (draft.trim() !== shown) onRename(raw, draft); };
+  // Reset to `shown` after every commit: clearing a name that has no override changes
+  // nothing, so `shown` never moves and the effect alone would leave the box blank. When
+  // the rename does change `shown`, the effect then sets the new name.
+  const commit = () => {
+    if (draft.trim() !== shown) onRename(raw, draft);
+    setDraft(shown);
+  };
   return (
-    <input className="opp" value={draft} title={`League name: ${raw}`} placeholder={raw}
+    <input className="opp" value={draft} title={`League name: ${raw}`} placeholder={raw} disabled={disabled}
            onChange={(e) => setDraft(e.target.value)} onBlur={commit}
            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
   );

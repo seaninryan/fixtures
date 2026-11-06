@@ -536,13 +536,16 @@ describe("GraphicsTab", () => {
   });
 });
 
+// The bar's own wording, not the word "unsaved", which the cache note also uses.
+const UNSAVED_BAR = /<b>(\d+ unsaved name changes?|Unsaved changes)<\/b>/;
+
 describe("ConfigSave", () => {
   const saved = { version: 1, teams: {} };
 
   it("says nothing is unsaved when the config matches", () => {
     const html = renderToStaticMarkup(<ConfigSave config={saved} savedConfig={saved} />);
     expect(html).toContain("Copy JSON");
-    expect(html).not.toContain("unsaved");
+    expect(html).not.toMatch(UNSAVED_BAR);
   });
 
   it("counts unsaved opponent renames", () => {
@@ -556,7 +559,49 @@ describe("ConfigSave", () => {
   it("is not dirty after a rename is added and cleared again", () => {
     const roundTrip = setOpponent(setOpponent(saved, "Gort B", "Gort Utd"), "Gort B", "");
     const html = renderToStaticMarkup(<ConfigSave config={roundTrip} savedConfig={saved} />);
-    expect(html).not.toContain("nsaved");
+    expect(html).not.toMatch(UNSAVED_BAR);
+  });
+});
+
+describe("ConfigSave review fixes", () => {
+  it("ignores key order when deciding what is unsaved", () => {
+    const saved = { version: 1, teams: {}, opponents: { "A X": "Alpha", "B Y": "Beta" } };
+    const edited = { teams: {}, version: 1, opponents: { "B Y": "Beta", "A X": "Alpha" } };
+    const html = renderToStaticMarkup(<ConfigSave config={edited} savedConfig={saved} />);
+    expect(html).not.toMatch(UNSAVED_BAR);
+  });
+
+  // Copy JSON here would paste an empty squad list over the real teams.json.
+  it("offers no copy when teams.json could not be loaded", () => {
+    const html = renderToStaticMarkup(<ConfigSave config={{ version: 1, teams: {} }} savedConfig={null} />);
+    expect(html).toContain("teams.json could not be loaded");
+    expect(html).not.toContain("Copy JSON");
+  });
+
+  it("tells the owner to reload after a Sync now", () => {
+    const html = renderToStaticMarkup(<ConfigSave config={{ version: 1 }} savedConfig={{ version: 1 }} />);
+    expect(html).toContain("If you used Sync now after saving, reload the page");
+  });
+});
+
+describe("editing while teams.json failed to load", () => {
+  const now = { date: "2026-08-25", time: "10:00" };
+
+  it("disables the opponent inputs on the Graphics tab", () => {
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]} results={{ results: [] }} config={config} savedConfig={null}
+                   onConfigChange={() => {}} today="2026-08-25" now={now} />,
+    );
+    expect(html).toMatch(/<input class="opp"[^>]* disabled=""/);
+    expect(html).toContain("teams.json could not be loaded");
+  });
+
+  it("disables the Squads tab inputs", () => {
+    const html = renderToStaticMarkup(
+      <SquadsTab fixtures={fixtures} config={config} savedConfig={null} onChange={() => {}} />,
+    );
+    expect(html).toMatch(/<input type="color"[^>]* disabled=""/);
+    expect(html).toMatch(/<input class="label-input"[^>]* disabled=""/);
   });
 });
 

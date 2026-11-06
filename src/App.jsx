@@ -158,7 +158,9 @@ export default function App() {
           await Promise.all([
             loadJson("latest.json", base),
             loadJson("changes.json", base).catch(() => []),
-            loadJson("teams.json", base).catch(() => ({ version: 1, teams: {} })),
+            // null, not an empty config: an empty one would be offered back as the thing
+            // to paste over teams.json, wiping every label. ConfigSave refuses on null.
+            loadJson("teams.json", base).catch(() => null),
             loadJson("results.json", base).catch(() => null),
             loadJson("latest-fai.json", base).catch(() => ({ fixtures: [] })),
             loadJson("changes-fai.json", base).catch(() => []),
@@ -166,7 +168,7 @@ export default function App() {
           ]);
         if (!live) return;
         // A sync reload must not discard unsaved Squads-tab edits.
-        if (base === BASE) { setConfig(loaded); setSavedConfig(loaded); }
+        if (base === BASE) { setConfig(loaded ?? { version: 1, teams: {} }); setSavedConfig(loaded); }
         setState({
           status: "ready", snapshot, history, results, faiSnapshot, faiHistory, faiResults,
         });
