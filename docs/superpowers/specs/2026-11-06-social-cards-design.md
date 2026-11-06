@@ -58,7 +58,9 @@ row's date, time and identity (`fid`, or a manual id).
 
 ### `src/lib/cardLayout.js` (pure, tested)
 
-`layoutCards({kind, rows, range, mode, shape, measure})` → `[{fileName, ops}]`.
+`layoutCards({kind, rows, mode, shape, measure})` → `[{fileName, ops, scale, width, height}]`.
+The heading comes from the dates of the rows on each card, not from the window, so a
+weekend window with games only on Sunday reads "SUNDAY 1 NOVEMBER".
 
 - `kind`: `"fixtures" | "results"`. `mode`: `"auto" | "single" | "perDay"`.
   `shape`: `"4x5" | "4x3"`.
@@ -196,7 +198,13 @@ the league's result.
 - Manual-entry merge (pure, in lib): official wins, mismatch flagged, expiry.
 - `GraphicsTab`: SSR smoke test. Canvas output is checked by eye after deploy.
 
-## Open item
+## Resolved during implementation
 
-The Canva Sans stand-in, chosen by the owner from a rendered comparison during
-implementation.
+- Canva Sans stand-in: **Mulish**, chosen by the owner from a rendered comparison.
+- Final text regions after tuning against screenshots: portrait `{x:80, y:395, w:920,
+  h:905}`, landscape `{x:400, y:115, w:900, h:815}`.
+- Split cards are balanced (12 rows → 6 + 6), not filled greedily.
+- Fits are verified by re-measuring, never assumed proportional.
+- Leave-off keys carry the kind (`fixtures:<id>` / `results:<id>`).
+- Sync watches the latest commit touching `latest.json`, not the branch head, so a
+  `teams.json` edit is not mistaken for a finished scan.

@@ -62,8 +62,7 @@ lives in a unit-tested pure function; new derivations belong in lib with tests.
 - `runCheck.js` — the whole pipeline minus I/O. The safety rules live here.
 - `diff.js` — change detection. `announce.js` — the announcement text.
 - `pending.js` — games whose kick-off has passed with no result yet. Derived at
-  read time from the snapshot and the results store; nothing is persisted, so
-  the data repo's workflow is unaffected. `clock.js` — the club's local date and
+  read time from the snapshot, `snapshot.awaiting` and the results store. `clock.js` — the club's local date and
   time as strings, and the only place a `Date` is unwrapped.
 - `form.js` — each squad's season record, and the Form tab's chart series and SVG
   geometry. Pure, so the scales and path strings are unit-tested without a DOM.
@@ -71,6 +70,21 @@ lives in a unit-tested pure function; new derivations belong in lib with tests.
   which its chip colour often is not) and `squadDash`.
 - `announce.js` is imported by **both** the site and `check.mjs`, so what you copy
   out of the app and what the email quotes cannot drift.
+- `awaiting.js` — played games that left the feed with no result yet, carried in
+  `snapshot.awaiting` (inside `latest*.json`, because the data repo's workflow commits a
+  fixed list of files) until the result lands, at most 14 days.
+- `cardRows.js`, `cardLayout.js`, `manualResults.js` — the Graphics tab's social cards.
+  `cardLayout` turns rows into plain-data draw ops with text width injected, so headings,
+  fitting and splitting are unit-tested without a DOM; `src/components/cardCanvas.js` is
+  the only code that touches a canvas. Backgrounds are the owner's Canva exports in
+  `public/cards/`, at exactly the sizes in `SHAPES` (a wrong size is refused). Mulish
+  stands in for Canva Sans, which cannot be embedded; League Spartan is the real thing.
+  To check the canvas output, render cards in a scratch Vite harness and screenshot with
+  headless Chrome - the app itself is behind the owner gate.
+
+"Sync now" opens the data repo's workflow page; the site then polls the latest commit
+touching `latest.json` and reloads at that commit's raw URL, because the branch URL is
+CDN-cached for five minutes.
 
 `src/lib/dataSource.js` is the single place that knows where the JSON lives. The site
 fetches it from `raw.githubusercontent.com` at **runtime**, so new fixtures appear
@@ -149,6 +163,16 @@ offline runs.
 - **The alert email is built ONCE, over both sources.** `changeReport` resolves labels
   from the fixture list it is handed, so a per-source report will drop the A/B letter
   the day a youth squad migrates while its sibling is still on Galway FA.
+- **Hand-entered results and Leave off reach the graphics only.** They live in this
+  browser's localStorage, never `results.json`, the Form tab or the email. A forfeit left
+  off a card still counts in Form, because it is the league's result. Leave-off keys carry
+  the kind, so leaving a game off Friday's fixtures card does not hide Sunday's score.
+- **`awaiting` is never counted by the scan guards and never diffed.** It holds games that
+  have already left the feed; the guards are about the feed. A malformed carried entry is
+  dropped, never carried - it would otherwise live forever and crash `sortFixtures`.
+- **Cards are drawn only with the real fonts.** Measuring with a fallback face fits text
+  to the wrong widths, so previews and downloads wait for `document.fonts` and stay
+  disabled, with a warning, if a face never loads.
 
 ## The data sources
 
