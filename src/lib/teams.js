@@ -3,6 +3,7 @@
 // A squad is identified by the league's team_id, never by its name. That is what lets a
 // cup competition entered by an existing squad inherit its label with no action, and what
 // makes a genuinely new squad visible as new.
+import { cleanOpponents } from "./opponents.js";
 import { PALETTE } from "./squadColors.js";
 
 export const CONFIG_VERSION = 1;
@@ -205,6 +206,11 @@ export function seedConfig(fixtures, existing) {
   }
 
   const out = { version: CONFIG_VERSION, teams: kept };
+  // Display names for opponents (see opponents.js). Carried through untouched apart from
+  // validation: without this, the next scan would silently drop every rename. Absent
+  // stays absent, so a config that never had renames keeps its exact shape.
+  const opponents = cleanOpponents(existing?.opponents);
+  if (Object.keys(opponents).length) out.opponents = opponents;
   for (const teamId of Object.keys(teams).sort()) {
     if (out.teams[teamId]) continue;
     out.teams[teamId] = { label: derived[teamId] ?? null, color: nextColor() };

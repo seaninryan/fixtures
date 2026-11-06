@@ -469,3 +469,20 @@ describe("fillLabelGaps", () => {
     expect(fillLabelGaps(labels, config, ["99"])).toBe(labels);
   });
 });
+
+describe("seedConfig opponents", () => {
+  it("keeps a valid opponents map through a scan", () => {
+    const out = seedConfig([], { version: 1, teams: {}, opponents: { "Gort B": "Gort Utd" } });
+    expect(out.opponents).toEqual({ "Gort B": "Gort Utd" });
+  });
+
+  it("drops malformed entries", () => {
+    const out = seedConfig([], { version: 1, teams: {}, opponents: { a: "", b: 4, c: "C" } });
+    expect(out.opponents).toEqual({ c: "C" });
+  });
+
+  it("has no opponents key when there were none", () => {
+    expect(seedConfig([], null)).not.toHaveProperty("opponents");
+    expect(seedConfig([], { version: 1, teams: {} })).not.toHaveProperty("opponents");
+  });
+});
