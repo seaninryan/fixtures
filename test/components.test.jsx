@@ -442,6 +442,45 @@ describe("GraphicsTab", () => {
     expect(html).toContain("Leave off");
   });
 
+  it("lists each card's games under it, with the opponent editable", () => {
+    const two = [
+      { ...fixtures[0], fid: "1", date: "2026-08-29", opponent: "Knocknacarra D" },
+      { ...fixtures[0], fid: "2", date: "2026-08-30", opponent: "Team X Junior Men's Team" },
+    ];
+    const cfg = { ...config, opponents: { "Team X Junior Men's Team": "Team X" } };
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={two} awaiting={[]} results={{ results: [] }} config={cfg} savedConfig={cfg}
+                   onConfigChange={() => {}} today="2026-08-25" now={{ date: "2026-08-25", time: "10:00" }} />,
+    );
+    expect(html).toContain('class="cardrows"');
+    expect(html).toContain('value="Knocknacarra"');
+    expect(html).toContain('value="Team X"');
+    expect(html).toContain('title="League name: Knocknacarra D"');
+    expect(html).not.toContain(">Rows<");
+  });
+
+  it("shows the unsaved bar when renames differ from teams.json", () => {
+    const cfg = { ...config, opponents: { "St Bernards": "Bernards" } };
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={fixtures} awaiting={[]} results={{ results: [] }} config={cfg} savedConfig={config}
+                   onConfigChange={() => {}} today="2026-08-25" now={{ date: "2026-08-25", time: "10:00" }} />,
+    );
+    expect(html).toContain("1 unsaved name change");
+  });
+
+  // A pre-filled pending game is shown - and stored, once scored - under its display
+  // name, or the hand-entered card would say "Knocknacarra D" beside an official
+  // "Knocknacarra".
+  it("shows a pending game's opponent by its display name", () => {
+    const lettered = [{ ...fixtures[0], opponent: "Knocknacarra D" }];
+    const html = renderToStaticMarkup(
+      <GraphicsTab fixtures={lettered} awaiting={[]} results={{ results: [] }} config={config}
+                   today="2026-08-30" now={{ date: "2026-08-30", time: "10:00" }} initialKind="Results" />,
+    );
+    expect(html).toContain("U14A Boys v Knocknacarra — 2026-08-29");
+    expect(html).not.toContain("Knocknacarra D —");
+  });
+
   it("says so when the results could not be loaded", () => {
     const html = renderToStaticMarkup(
       <GraphicsTab fixtures={fixtures} awaiting={[]} results={null}
@@ -458,7 +497,9 @@ describe("GraphicsTab", () => {
                    config={config} today="2026-08-30" now={played} initialKind="Results" />,
     );
     expect(html).toContain("results-2026-08-28-4x5.png");
-    expect(html).toContain("U14A Boys 3-1 St Bernards");
+    // The card's own section lists the game, score included.
+    expect(html).toContain('value="St Bernards"');
+    expect(html).toContain('<span class="dim"> 3-1</span>');
     expect(html).toContain("U14A Boys v St Bernards — 2026-08-29");
   });
 

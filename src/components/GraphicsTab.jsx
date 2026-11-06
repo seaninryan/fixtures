@@ -10,7 +10,10 @@ import { mergeManual, manualEntry, applyLeaveOff, MANUAL_DAYS } from "../lib/man
 import { parseScore } from "../lib/normalize.js";
 import { pendingFixtures } from "../lib/pending.js";
 import { layoutCards, approxMeasure, DISPLAY_FONT, BODY_FONT, SHAPES } from "../lib/cardLayout.js";
+import { cardSections } from "../lib/cardSections.js";
+import { opponentName, setOpponent } from "../lib/opponents.js";
 import { canvasMeasure, loadBackground, drawCard, downloadCanvas } from "./cardCanvas.js";
+import ConfigSave from "./ConfigSave.jsx";
 
 const MODES = [["auto", "Auto"], ["single", "One card"], ["perDay", "Card per day"]];
 const SHAPE_NAMES = Object.keys(SHAPES);
@@ -108,7 +111,8 @@ async function downloadAll(kind, shapes, cardsByShape) {
   }
 }
 
-export default function GraphicsTab({ fixtures, awaiting = [], results, config, today, now, initialKind = "Fixtures" }) {
+export default function GraphicsTab({ fixtures, awaiting = [], results, config, savedConfig, onConfigChange,
+                                      today, now, initialKind = "Fixtures" }) {
   const [kind, setKind] = useState(initialKind);
   const [fxWindow, setFxWindow] = useState("This weekend");
   const [rsWindow, setRsWindow] = useState("Last 7 days");
@@ -141,22 +145,23 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
       const chosen = merged.results.filter(resultWindowPredicate(rsWindow, today));
       // Labels over ALL fixtures; the chosen results only fill gaps for departed squads.
       const labels = cardLabels(fixtures, config, chosen.map((r) => r.teamId));
-      return resultRows(chosen, labels);
+      return resultRows(chosen, labels, config);
     }
     const chosen = fixtures.filter(windowPredicate(fxWindow, today));
-    return fixtureRows(chosen, cardLabels(fixtures, config, []));
+    return fixtureRows(chosen, cardLabels(fixtures, config, []), config);
   }, [isResults, merged, rsWindow, fxWindow, fixtures, config, today]);
 
   // Leave-off keys carry the kind: a fixture row and its result share a fid, and leaving
   // a game off Friday's fixtures card must not hide its score on Sunday's results card.
   const leaveKey = (id) => `${lower}:${id}`;
+  // This kind's left-off ids, without the prefix: shared by the layout and the sections.
+  const off = useMemo(() => {
+    const prefix = `${lower}:`;
+    return leaveOff.filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length));
+  }, [leaveOff, lower]);
   // Memoised so the cards keep their identity across renders - CardPreview redraws
   // whenever its `card` changes.
-  const rows = useMemo(() => {
-    const prefix = `${lower}:`;
-    const off = leaveOff.filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length));
-    return applyLeaveOff(allRows, off);
-  }, [allRows, leaveOff, lower]);
+  const rows = useMemo(() => applyLeaveOff(allRows, off), [allRows, off]);
   const { cardsByShape, error: layoutError } = useMemo(
     () => layoutAll(lower, rows, mode, measure), [lower, rows, mode, measure]);
 
@@ -166,6 +171,8 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
     writeLs(LS_LEAVE_OFF, next);
   }
   function saveManual(next) { setManual(next); writeLs(LS_MANUAL, next); }
+  const rename = (raw, name) => onConfigChange?.(setOpponent(config, raw, name));
+  const toggleRow = (id) => toggleLeaveOff(leaveKey(id));
   function startDownload(shapes) {
     setDownloadError(null);
     downloadAll(lower, shapes, cardsByShape).catch((e) => setDownloadError(e.message));
@@ -185,6 +192,7 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
   const windowName = isResults ? rsWindow : fxWindow;
   const setWindow = isResults ? setRsWindow : setFxWindow;
   const cards = cardsByShape[shape];
+  const { sections, orphans } = cardSections(cards, allRows, off);
 
   return (
     <section>
@@ -211,7 +219,9 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
       )}
       {layoutError && <div className="card warn"><p>Could not lay out the cards: {layoutError}</p></div>}
       {!layoutError && cards.length === 0 && (
-        <div className="card"><p className="dim">Nothing in this window.</p></div>
+        <div className="card"><p className="dim">
+          {allRows.length > 0 ? "Every game in this window is left off." : "Nothing in this window."}
+        </p></div>
       )}
       {cards.length > 0 && (
         <>
@@ -221,31 +231,33 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
             {downloadError && <span className="dim">{downloadError}</span>}
           </div>
           <div className="cardgrid">
-            {cards.map((card) => <CardPreview key={card.fileName} kind={lower} shape={shape} card={card} fontsReady={fontsReady} />)}
+            {cards.map((card, i) => (
+              <div key={card.fileName} className="cardcol">
+                <CardPreview kind={lower} shape={shape} card={card} fontsReady={fontsReady} />
+                <CardRows entries={sections[i]?.rows ?? []} onToggle={toggleRow} onRename={rename} />
+              </div>
+            ))}
           </div>
         </>
       )}
+      {/* Outside the cards branch on purpose: when every row is left off there are no
+          cards, and this is the only place left to put them back. */}
+      {orphans.length > 0 && (
+        <div className="card">
+          <p className="phead">Not on any card</p>
+          <CardRows entries={orphans.map((row) => ({ row, leftOff: true }))}
+                    onToggle={toggleRow} onRename={rename} />
+        </div>
+      )}
+      {allRows.length > 0 && <ConfigSave config={config} savedConfig={savedConfig} />}
 
       {merged.conflicts.length > 0 && (
         <div className="card warn">
           {merged.conflicts.map(({ entry, official: o }) => (
             <p key={entry.id}>
-              The league scored {entry.opponent} on {entry.date} as {o.ourScore}-{o.theirScore};
+              The league scored {opponentName(entry.opponent, config)} on {entry.date} as {o.ourScore}-{o.theirScore};
               you entered {entry.ourScore}-{entry.theirScore}. A card you posted may be wrong.
             </p>
-          ))}
-        </div>
-      )}
-
-      {allRows.length > 0 && (
-        <div className="card">
-          <p className="phead">Rows</p>
-          {allRows.map((r) => (
-            <label key={r.id} className="aline">
-              <input type="checkbox" checked={leaveOff.includes(leaveKey(r.id))}
-                     onChange={() => toggleLeaveOff(leaveKey(r.id))} />
-              {" "}Leave off — {r.segments.map((s) => s.text).join("")}
-            </label>
           ))}
         </div>
       )}
@@ -255,6 +267,43 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
                        now={now} today={today} manual={manual} onChange={saveManual} />
       )}
     </section>
+  );
+}
+
+// One card's games: Leave off, and the opponent renamed in place. The input commits on
+// blur or Enter, not per keystroke - each commit re-lays out and redraws every card.
+function CardRows({ entries, onToggle, onRename }) {
+  if (entries.length === 0) return null;
+  return (
+    <ul className="cardrows">
+      {entries.map(({ row, leftOff }) => (
+        <li key={row.id} className={leftOff ? "off" : ""}>
+          <label className="leave">
+            <input type="checkbox" checked={leftOff} onChange={() => onToggle(row.id)} />
+            <span>Leave off</span>
+          </label>
+          <span className="who">
+            {row.chip ? <span className="dim">{row.chip} </span> : null}
+            <b>{row.meta.label}</b> {row.meta.versus}{" "}
+            {row.meta.editable
+              ? <OpponentInput raw={row.meta.opponentRaw} shown={row.meta.opponent} onRename={onRename} />
+              : <span>{row.meta.opponent}</span>}
+            {row.meta.score ? <span className="dim"> {row.meta.score}</span> : null}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function OpponentInput({ raw, shown, onRename }) {
+  const [draft, setDraft] = useState(shown);
+  useEffect(() => { setDraft(shown); }, [shown]);
+  const commit = () => { if (draft.trim() !== shown) onRename(raw, draft); };
+  return (
+    <input className="opp" value={draft} title={`League name: ${raw}`} placeholder={raw}
+           onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
   );
 }
 
@@ -296,7 +345,9 @@ function ManualResults({ fixtures, awaiting, official, config, now, today, manua
     <div className="card">
       <p className="phead">Add a result the league has not published</p>
       {pending.filter((f) => !entered.has(String(f.fid)) && !enteredDay.has(`${f.teamId}|${f.date}`)).map((f) => (
-        <PendingRow key={f.fid} fixture={f} label={labels[f.teamId] ?? f.ourTeam} onAdd={add} />
+        // Stored under the display name, so the hand-entered card matches official ones.
+        <PendingRow key={f.fid} fixture={{ ...f, opponent: opponentName(f.opponent, config) }}
+                    label={labels[f.teamId] ?? f.ourTeam} onAdd={add} />
       ))}
       <form className="row" onSubmit={(ev) => {
         ev.preventDefault();
