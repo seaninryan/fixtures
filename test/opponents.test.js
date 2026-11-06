@@ -71,12 +71,12 @@ describe("setOpponent", () => {
 
   it("removes the override when set back to the cleaned default", () => {
     const withIt = setOpponent(base, "Knocknacarra D", "Knocks");
-    expect(setOpponent(withIt, "Knocknacarra D", "Knocknacarra").opponents).toEqual({});
+    expect(setOpponent(withIt, "Knocknacarra D", "Knocknacarra")).not.toHaveProperty("opponents");
   });
 
   it("removes the override when cleared", () => {
     const withIt = setOpponent(base, "Knocknacarra D", "Knocks");
-    expect(setOpponent(withIt, "Knocknacarra D", "   ").opponents).toEqual({});
+    expect(setOpponent(withIt, "Knocknacarra D", "   ")).not.toHaveProperty("opponents");
   });
 
   it("stores trimmed text", () => {

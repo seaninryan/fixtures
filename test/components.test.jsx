@@ -6,6 +6,8 @@ import ChangesTab from "../src/components/ChangesTab.jsx";
 import SquadsTab from "../src/components/SquadsTab.jsx";
 import FormTab from "../src/components/FormTab.jsx";
 import GraphicsTab from "../src/components/GraphicsTab.jsx";
+import ConfigSave from "../src/components/ConfigSave.jsx";
+import { setOpponent } from "../src/lib/opponents.js";
 import { roundup } from "../src/lib/results.js";
 
 const config = { version: 1, teams: { "235380": { label: "U14A Boys", color: "#1f6feb" } } };
@@ -490,5 +492,41 @@ describe("GraphicsTab", () => {
                    initialKind="Results" />,
     );
     expect(html).toContain('<option value="235380">U14A Boys</option>');
+  });
+});
+
+describe("ConfigSave", () => {
+  const saved = { version: 1, teams: {} };
+
+  it("says nothing is unsaved when the config matches", () => {
+    const html = renderToStaticMarkup(<ConfigSave config={saved} savedConfig={saved} />);
+    expect(html).toContain("Copy JSON");
+    expect(html).not.toContain("unsaved");
+  });
+
+  it("counts unsaved opponent renames", () => {
+    const edited = { ...saved, opponents: { "Gort B": "Gort Utd", "Team X Junior": "Team X" } };
+    const html = renderToStaticMarkup(<ConfigSave config={edited} savedConfig={saved} />);
+    expect(html).toContain("2 unsaved name changes");
+  });
+
+  // seedConfig omits an empty `opponents`, so a rename added then cleared must leave the
+  // config byte-identical to teams.json - not carrying a phantom `opponents: {}`.
+  it("is not dirty after a rename is added and cleared again", () => {
+    const roundTrip = setOpponent(setOpponent(saved, "Gort B", "Gort Utd"), "Gort B", "");
+    const html = renderToStaticMarkup(<ConfigSave config={roundTrip} savedConfig={saved} />);
+    expect(html).not.toContain("nsaved");
+  });
+});
+
+describe("SquadsTab opponents", () => {
+  it("lists opponent renames raw -> shown", () => {
+    const cfg = { ...config, opponents: { "Team X Junior Men's Team": "Team X" } };
+    const html = renderToStaticMarkup(
+      <SquadsTab fixtures={fixtures} config={cfg} savedConfig={cfg} onChange={() => {}} />,
+    );
+    expect(html).toContain("Opponent names");
+    expect(html).toContain("Team X Junior Men&#x27;s Team");
+    expect(html).toContain("Team X");
   });
 });

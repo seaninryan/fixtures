@@ -104,3 +104,4 @@ body { margin: 0; background: var(--bg); color: var(--fg);
 .cardprev figcaption { font-size: 12px; word-break: break-all; }
 .card.warn { border-color: #d29922; }
 input.score { width: 4em; }
+.card.save p { margin: 0 0 8px; }

@@ -34,12 +34,15 @@ export function opponentName(raw, config) {
 
 // A new config with the override for `raw` set to `name` - or removed, when `name` is
 // blank or equals the cleaned default, so teams.json never collects no-op entries.
+// An empty map drops the key altogether, as seedConfig does: the save bar compares JSON,
+// and a leftover `opponents: {}` would read as an unsaved change after add-then-clear.
 export function setOpponent(config, raw, name) {
   const opponents = { ...cleanOpponents(config?.opponents) };
   const value = String(name ?? "").trim();
   if (!value || value === cleanOpponent(raw)) delete opponents[raw];
   else opponents[raw] = value;
-  return { ...config, opponents };
+  const { opponents: _old, ...rest } = config ?? {};
+  return Object.keys(opponents).length ? { ...rest, opponents } : rest;
 }
 
 // Validate a stored `opponents` object: string keys to non-empty strings, nothing else.
