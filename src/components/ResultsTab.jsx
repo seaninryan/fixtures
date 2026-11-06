@@ -7,7 +7,7 @@ import { RESULT_WINDOWS } from "../lib/window.js";
 // distinction matters: an empty store means nobody played, a null one means we do not
 // know, and rendering them identically would quietly turn a load failure into a
 // confident "no games".
-export default function ResultsTab({ results, fixtures, config, today, now }) {
+export default function ResultsTab({ results, fixtures, awaiting = [], config, today, now }) {
   const [windowName, setWindowName] = useState("Last 7 days");
   const [copied, setCopied] = useState(false);
 
@@ -33,7 +33,7 @@ export default function ResultsTab({ results, fixtures, config, today, now }) {
   // A played game with no result yet. Derived here rather than stored - see pending.js.
   // `now` carries the club's local time; without it there is nothing to compare a
   // kick-off against, so an absent prop yields no section rather than a wrong one.
-  const pending = now ? pendingLines(fixtures, results?.results ?? [], config, now) : [];
+  const pending = now ? pendingLines(fixtures, results?.results ?? [], config, now, awaiting) : [];
 
   async function copy() {
     try {
