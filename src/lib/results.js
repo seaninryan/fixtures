@@ -3,6 +3,7 @@ import { sortResults } from "./normalize.js";
 import { resultWindowPredicate } from "./window.js";
 import { resolveTeams, fillLabelGaps } from "./teams.js";
 import { squadColor } from "./squadColors.js";
+import { opponentName } from "./opponents.js";
 
 export const RESULTS_VERSION = 1;
 
@@ -40,11 +41,12 @@ function dayHeading(iso) {
 // Home team first, always - the football convention. Our side is written as its squad
 // label and never alongside the club name, exactly as the fixtures announcement writes
 // "U14A Boys v St Bernards".
-export function formatResultLine(result, labels) {
+export function formatResultLine(result, labels, config) {
   const label = labels[result.teamId] ?? result.ourTeam;
+  const opp = opponentName(result.opponent, config);
   return result.isHome
-    ? `${label} ${result.ourScore}-${result.theirScore} ${result.opponent}`
-    : `${result.opponent} ${result.theirScore}-${result.ourScore} ${label}`;
+    ? `${label} ${result.ourScore}-${result.theirScore} ${opp}`
+    : `${opp} ${result.theirScore}-${result.ourScore} ${label}`;
 }
 
 // The round-up as a list of lines, one entry per rendered line. Mirrors announceLines
@@ -108,7 +110,7 @@ export function roundupLines(results, config, windowName, today, fixtures = []) 
     }
     lines.push({
       kind: "result",
-      text: formatResultLine(result, labels),
+      text: formatResultLine(result, labels, config),
       teamId: result.teamId,
       color: squadColor(result.teamId, config).bg,
     });

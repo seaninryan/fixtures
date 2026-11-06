@@ -5,6 +5,7 @@
 import { windowPredicate, windowRange } from "./window.js";
 import { resolveTeams } from "./teams.js";
 import { squadColor } from "./squadColors.js";
+import { opponentName } from "./opponents.js";
 
 export const CLUB_TITLE = "CRAUGHWELL UNITED";
 export const HOME_VENUE = "Craughwell";
@@ -44,14 +45,15 @@ export function venueNote(fixture) {
     : "";
 }
 
-export function formatFixtureLine(fixture, labels) {
+// `config` supplies opponent renames; without it names are still cleaned by default.
+export function formatFixtureLine(fixture, labels, config) {
   const label = labels[fixture.teamId] ?? fixture.ourTeam;
   const versus = fixture.isHome ? "v" : "@";
   // No leading whitespace. This text gets pasted into WhatsApp and Facebook, where an
   // indented line can be treated as preformatted and is a nuisance to strip on a phone.
   // The site indents fixture lines in CSS instead, so the look survives and the copy is
   // clean. The gap between the time and the squad is alignment, not indentation.
-  return `${fixture.time}  ${label} ${versus} ${fixture.opponent}${venueNote(fixture)}`;
+  return `${fixture.time}  ${label} ${versus} ${opponentName(fixture.opponent, config)}${venueNote(fixture)}`;
 }
 
 // The announcement as a list of lines, one entry per rendered line.
@@ -118,7 +120,7 @@ export function announceLines(fixtures, config, windowName, today) {
     }
     lines.push({
       kind: "fixture",
-      text: formatFixtureLine(fixture, labels),
+      text: formatFixtureLine(fixture, labels, config),
       teamId: fixture.teamId,
       color: squadColor(fixture.teamId, config).bg,
     });

@@ -345,6 +345,31 @@ describe("ChangesTab", () => {
   });
 });
 
+describe("ChangesTab opponent names", () => {
+  const lettered = { ...fixtures[0], opponent: "Knocknacarra D" };
+
+  it("shows a cleaned opponent on the fixture line", () => {
+    const history = [{ checkedAt: "2026-08-25T06:00:00Z", changes: [{
+      type: "moved", fid: "1", teamId: "235380", fixture: lettered,
+      from: { date: "2026-08-29", time: "12:00" }, to: { date: "2026-08-29", time: "16:00" },
+      comment: "",
+    }] }];
+    const html = renderToStaticMarkup(<ChangesTab history={history} config={config} />);
+    expect(html).toContain("v Knocknacarra<");
+    expect(html).not.toContain("Knocknacarra D");
+  });
+
+  it("keeps the RAW names in an opponent change's summary", () => {
+    const history = [{ checkedAt: "2026-08-25T06:00:00Z", changes: [{
+      type: "opponent", fid: "1", teamId: "235380", fixture: lettered, comment: "",
+      from: { opponent: "Knocknacarra C", competition: "X" },
+      to: { opponent: "Knocknacarra D", competition: "X" },
+    }] }];
+    const html = renderToStaticMarkup(<ChangesTab history={history} config={config} />);
+    expect(html).toContain("Knocknacarra C → Knocknacarra D");
+  });
+});
+
 describe("SquadsTab", () => {
   it("lists every squad with its label", () => {
     const html = renderToStaticMarkup(

@@ -79,11 +79,11 @@ describe("formatResultLine", () => {
 
   it("writes the away game with the opponent first", () => {
     expect(formatResultLine(away, { 22: "U14B Boys" }))
-      .toBe("Cregmore/Claregalway C 4-3 U14B Boys");
+      .toBe("Cregmore/Claregalway 4-3 U14B Boys");
   });
 
   it("falls back to the team name when a squad has no label", () => {
-    expect(formatResultLine(away, {})).toBe("Cregmore/Claregalway C 4-3 Craughwell United B");
+    expect(formatResultLine(away, {})).toBe("Cregmore/Claregalway 4-3 Craughwell United B");
   });
 
   it("renders a nil-all draw", () => {
@@ -106,7 +106,7 @@ const squadFixtures = [
 describe("roundup", () => {
   it("matches the agreed format exactly", () => {
     expect(roundup([home, away], config, "Last 7 days", "2026-08-31", squadFixtures)).toBe(
-      "SATURDAY 29 AUGUST\n\nU14A Boys 1-0 St Bernards\nCregmore/Claregalway C 4-3 U14B Boys",
+      "SATURDAY 29 AUGUST\n\nU14A Boys 1-0 St Bernards\nCregmore/Claregalway 4-3 U14B Boys",
     );
   });
 
@@ -196,5 +196,24 @@ describe("roundupLines label resolution", () => {
     const text = lines.map((l) => l.text).join("\n");
     expect(text).toContain("U14A Boys");
     expect(text).not.toContain("U14 Boys 1-0");
+  });
+});
+
+describe("opponent names in results", () => {
+  const renames = { ...config, opponents: { "Team X Junior Men's Team": "Team X" } };
+
+  it("strips the opponent's team letter on a home and an away line", () => {
+    expect(formatResultLine(result({ isHome: true, opponent: "Knocknacarra D" }), { 11: "U14A Boys" }))
+      .toBe("U14A Boys 1-0 Knocknacarra");
+    expect(formatResultLine(result({ isHome: false, opponent: "Knocknacarra D" }), { 11: "U14A Boys" }))
+      .toBe("Knocknacarra 0-1 U14A Boys");
+  });
+
+  it("threads an override through roundup()", () => {
+    const text = roundup(
+      [result({ opponent: "Team X Junior Men's Team" })], renames, "Last 7 days", "2026-08-31", squadFixtures,
+    );
+    expect(text).toContain("U14A Boys 1-0 Team X");
+    expect(text).not.toContain("Junior Men's");
   });
 });

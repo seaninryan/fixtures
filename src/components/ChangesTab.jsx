@@ -1,4 +1,5 @@
 import { resolveTeams } from "../lib/teams.js";
+import { opponentName } from "../lib/opponents.js";
 
 const HEADINGS = {
   cancelled: "CANCELLED", moved: "MOVED", venue: "VENUE CHANGE",
@@ -11,6 +12,8 @@ function summarise(change) {
       return `${change.from.date} ${change.from.time} → ${change.to.date} ${change.to.time}`;
     case "venue":
       return `${change.from || "(none)"} → ${change.to || "(none)"}`;
+    // RAW on purpose: this change IS the feed renaming the opponent, and cleaning both
+    // sides could print "Knocknacarra → Knocknacarra".
     case "opponent":
       return `${change.from.opponent} → ${change.to.opponent}`;
     // A note change carries its text in from/to, not in `comment` - see diff.js.
@@ -43,7 +46,7 @@ export default function ChangesTab({ history, fixtures, config }) {
             <div className="change" key={`${c.type}-${c.fid}`}>
               <span className="tag">{HEADINGS[c.type]}</span>
               <strong>{labels[c.teamId] ?? c.fixture.ourTeam}</strong>{" "}
-              {c.fixture.isHome ? "v" : "@"} {c.fixture.opponent}
+              {c.fixture.isHome ? "v" : "@"} {opponentName(c.fixture.opponent, config)}
               <div className="dim">{summarise(c)}</div>
               {c.comment ? <div className="dim">League note: “{c.comment}”</div> : null}
             </div>

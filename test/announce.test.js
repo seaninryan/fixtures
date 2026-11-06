@@ -7,6 +7,7 @@ import { windowPredicate, WINDOWS } from "../src/lib/window.js";
 import {
   announce, announceLines, formatFixtureLine, CLUB_TITLE, HOME_VENUE,
 } from "../src/lib/announce.js";
+import { opponentName } from "../src/lib/opponents.js";
 
 const config = { teams: {
   "235380": { label: "U14A Boys", color: "#1f6feb" },
@@ -31,12 +32,14 @@ describe("formatFixtureLine", () => {
 
   it("writes an away game with @", () => {
     expect(formatFixtureLine(f({ isHome: false, opponent: "Cregmore/Claregalway C", venue: "Cregmore" }), labels, {}))
-      .toBe("12:00  U14A Boys @ Cregmore/Claregalway C");
+      .toBe("12:00  U14A Boys @ Cregmore/Claregalway");
   });
 
-  it("keeps the opposition's own suffix, so parents know which side they face", () => {
+  // Reversed on purpose: the opponent's team letter is clutter and is now stripped
+  // (opponents.js). The A/B letter that matters is OUR squad's, in the label.
+  it("drops the opposition's own team letter", () => {
     expect(formatFixtureLine(f({ opponent: "Colga B" }), labels, {}))
-      .toContain("v Colga B");
+      .toMatch(/v Colga$/);
   });
 
   it("names the ground only when a home game is not at the home ground", () => {
@@ -97,10 +100,10 @@ Fri 28 Aug - Sun 30 Aug
 
 SATURDAY 29 AUGUST
 12:00  U14A Boys v St Bernards
-12:00  U14B Boys @ Cregmore/Claregalway C
+12:00  U14B Boys @ Cregmore/Claregalway
 
 SUNDAY 30 AUGUST
-12:00  U14 Girls @ Colga B`);
+12:00  U14 Girls @ Colga`);
   });
 
   it("honours the window", () => {
@@ -265,7 +268,7 @@ describe("announce over the golden capture", () => {
   it("covers every fixture in the capture when the window is All", () => {
     const out = announce(real, realConfig, "All", TODAY);
     expect(out.split("\n").filter((l) => FIXTURE_LINE.test(l))).toHaveLength(real.length);
-    for (const x of real) expect(out).toContain(x.opponent);
+    for (const x of real) expect(out).toContain(opponentName(x.opponent, realConfig));
   });
 
   // The two squads whose competition carries no age-and-gender pair. resolveTeams
@@ -315,7 +318,7 @@ describe("announce over the golden capture", () => {
     const forwards = announce([a, b], config, "All", "2026-08-25");
     const backwards = announce([b, a], config, "All", "2026-08-25");
     expect(forwards).toBe(backwards);
-    expect(forwards.indexOf("Athenry")).toBeLessThan(forwards.indexOf("Colga B"));
+    expect(forwards.indexOf("Athenry")).toBeLessThan(forwards.indexOf("Colga"));
   });
 });
 
@@ -454,5 +457,33 @@ describe("announceLines with both sources", () => {
       .map((l) => l.text).join("\n");
     expect(text).toContain("U14A Boys");
     expect(text).toContain("U14B Boys");
+  });
+});
+
+describe("opponent names in the announcement", () => {
+  const labels = { "235380": "U14A Boys" };
+  const renames = { opponents: { "Team X Junior Men's Team": "Team X" } };
+
+  it("strips the opponent's team letter by default", () => {
+    const line = formatFixtureLine(f({ opponent: "Knocknacarra D" }), labels, {});
+    expect(line).toContain("v Knocknacarra");
+    expect(line).not.toContain("Knocknacarra D");
+  });
+
+  it("uses a configured override", () => {
+    expect(formatFixtureLine(f({ opponent: "Team X Junior Men's Team" }), labels, renames))
+      .toContain("v Team X");
+    expect(formatFixtureLine(f({ opponent: "Team X Junior Men's Team" }), labels, renames))
+      .not.toContain("Junior Men's");
+  });
+
+  it("threads the config through announce()", () => {
+    const text = announce(
+      [f({ fid: "7", opponent: "Team X Junior Men's Team" }), f({ fid: "8", time: "14:00", opponent: "Knocknacarra D" })],
+      { ...config, ...renames }, "This weekend", "2026-08-25",
+    );
+    expect(text).toContain("U14A Boys v Team X");
+    expect(text).toContain("U14A Boys v Knocknacarra");
+    expect(text).not.toContain("Knocknacarra D");
   });
 });
