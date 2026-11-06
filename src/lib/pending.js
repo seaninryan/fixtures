@@ -15,9 +15,9 @@ import { resolveTeams, fillLabelGaps } from "./teams.js";
 import { squadColor } from "./squadColors.js";
 import { shortDate } from "./announce.js";
 
-// How far back a pending game is still worth showing. The snapshot only holds what the
-// league still lists, so this bounds the one failure mode that outlives a run: a fixture
-// stranded in the feed with a past date would otherwise sit in the list for months.
+// How far back a pending game is still worth showing. The snapshot holds what the league
+// still lists and `awaiting` holds played games the scan carries forward; this bounds a
+// fixture stranded with a past date. Must agree with AWAITING_DAYS in awaiting.js.
 const PENDING_WINDOW = "Last 14 days";
 
 const HH_MM = /^\d{2}:\d{2}$/;

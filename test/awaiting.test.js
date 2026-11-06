@@ -66,4 +66,19 @@ describe("nextAwaiting", () => {
     const out = nextAwaiting({ previous, fixtures: [], results: [], today: TODAY });
     expect(out.map((f) => f.fid)).toEqual(["c", "a", "b"]);
   });
+
+  it("ignores a non-array awaiting list", () => {
+    const previous = { fixtures: [], awaiting: "nope" };
+    expect(nextAwaiting({ previous, fixtures: [], results: [], today: TODAY })).toEqual([]);
+  });
+
+  it("drops malformed carried entries instead of carrying them forever", () => {
+    const previous = {
+      fixtures: [],
+      awaiting: [fx({ fid: "nodate", date: undefined }), null, fx({ fid: "numdate", date: 5 }),
+        fx({ fid: "notime", time: undefined }), fx({ fid: null }), fx({ fid: "ok" })],
+    };
+    const out = nextAwaiting({ previous, fixtures: [], results: [], today: TODAY });
+    expect(out.map((f) => f.fid)).toEqual(["ok"]);
+  });
 });

@@ -19,6 +19,10 @@ export const SNAPSHOT_VERSION = 1;
 export const SHRINK_LIMIT = 0.5;
 
 export function runCheck({ html, previous, previousResults, config, now, today, history = [], siteUrl, allowShrink = false }) {
+  // addDays (awaiting.js) would otherwise die with an opaque RangeError on a bad date.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(today))) {
+    throw new Error(`aborting: today must be an ISO date, got "${today}"`);
+  }
   const parsed = parse(html);
   const { fixtures, errors: dateErrors } = normalizeAll(parsed.fixtures);
   const errors = [...parsed.errors, ...dateErrors];

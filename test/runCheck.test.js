@@ -513,3 +513,22 @@ describe("results", () => {
     });
   });
 });
+
+describe("awaiting ordering and guards", () => {
+  it("a result that arrives in THIS run clears its game", () => {
+    const base = { now: "2026-08-30T12:00:00.000Z", today: "2026-08-30", config: null };
+    const probe = runCheck({ ...base, html: resultsHtml, previous: null, previousResults: null });
+    const fid = probe.results.results[0].fid;
+    const previous = { fixtures: [], awaiting: [{
+      fid, teamId: "11", date: "2026-08-29", time: "14:00", isHome: true,
+      ourTeam: "Craughwell United", opponent: "X", venue: "", competition: "", comment: "",
+    }] };
+    const out = runCheck({ ...base, html: resultsHtml, previous, previousResults: null });
+    expect(out.snapshot.awaiting).toEqual([]);
+  });
+
+  it("refuses a malformed today", () => {
+    expect(() => runCheck({ html, previous: null, config: null, now: NOW, today: "25/08/2026" }))
+      .toThrow(/today must be an ISO date/);
+  });
+});
