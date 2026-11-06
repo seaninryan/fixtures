@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import AnnouncementTab from "./components/AnnouncementTab.jsx";
 import ResultsTab from "./components/ResultsTab.jsx";
+import GraphicsTab from "./components/GraphicsTab.jsx";
 import FormTab from "./components/FormTab.jsx";
 import ChangesTab from "./components/ChangesTab.jsx";
 import SquadsTab from "./components/SquadsTab.jsx";
@@ -11,7 +12,7 @@ import {
 import { isOwner } from "./lib/owner.js";
 import { clubNow } from "./lib/clock.js";
 
-const TABS = ["Fixtures", "Results", "Form", "Changes", "Squads"];
+const TABS = ["Fixtures", "Results", "Graphics", "Form", "Changes", "Squads"];
 
 // Set VITE_DATA_URL in a .env file to read a local copy instead of the data repo.
 const BASE = import.meta.env.VITE_DATA_URL || DEFAULT_DATA_URL;
@@ -206,6 +207,8 @@ export default function App() {
   // colours come from the one shared teams.json, so a squad keeps its identity across the
   // announcement, the round-up, the chart and the table whichever system it is on.
   const fixtures = [...(snapshot.fixtures ?? []), ...(faiSnapshot?.fixtures ?? [])];
+  // Played games each scan is still waiting on a result for - see awaiting.js.
+  const awaiting = [...(snapshot.awaiting ?? []), ...(faiSnapshot?.awaiting ?? [])];
 
   // ResultsTab and FormTab both read `results?.results ?? []` and both branch on
   // `results === null`, so this must stay the WRAPPER shape and must keep null meaning
@@ -242,8 +245,12 @@ export default function App() {
       </div>
       {tab === "Fixtures" && <AnnouncementTab fixtures={fixtures} config={config} today={today} />}
       {tab === "Results" && (
-        <ResultsTab results={results} fixtures={fixtures} config={config}
+        <ResultsTab results={results} fixtures={fixtures} awaiting={awaiting} config={config}
                     today={today} now={now} />
+      )}
+      {tab === "Graphics" && (
+        <GraphicsTab fixtures={fixtures} awaiting={awaiting} results={results}
+                     config={config} today={today} now={now} />
       )}
       {tab === "Form" && (
         <FormTab results={results} fixtures={fixtures} config={config} today={today} />
