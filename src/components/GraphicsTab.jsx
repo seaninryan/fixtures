@@ -38,11 +38,13 @@ function useCardFonts() {
   useEffect(() => {
     let live = true;
     const faces = [`700 40px "${DISPLAY_FONT}"`, `400 40px "${BODY_FONT}"`, `700 40px "${BODY_FONT}"`];
+    // Judged on what load() actually found, NOT on document.fonts.check: check() answers
+    // true when no face of that family is registered at all, which is exactly what a
+    // blocked Google Fonts stylesheet looks like - the case the warning exists for.
     Promise.all(faces.map((f) => document.fonts.load(f)))
-      .catch(() => {})
-      .then(() => {
-        if (live) setStatus(faces.every((f) => document.fonts.check(f)) ? "ready" : "missing");
-      });
+      .then((lists) => lists.every((l) => l.length > 0 && l.every((ff) => ff.status === "loaded")))
+      .catch(() => false)
+      .then((ok) => { if (live) setStatus(ok ? "ready" : "missing"); });
     return () => { live = false; };
   }, []);
   return status;

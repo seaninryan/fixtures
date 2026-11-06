@@ -73,8 +73,8 @@ weekend window with games only on Sunday reads "SUNDAY 1 NOVEMBER".
   the crest. The canvas is the background's own pixel size, never rescaled:
   - Portrait **1080×1350**, crest top-centre (to about y 360); text below it.
   - Landscape **1448×1086** (4:3), crest in the **top-left corner** (about x 70–355,
-    y 55–345); text region to the right of it at full height, inside the results
-    card's football border (about x 380–1330).
+    y 55–345); text region to the right of it, inside the results card's football
+    border (final: x 400–1300, y 115–930).
   Moving the crest in Canva means editing these four numbers. A background whose
   natural size differs from its constant is an error, so a re-export at the wrong
   size is caught rather than silently stretched.
@@ -120,8 +120,8 @@ fixture windows for fixtures, the existing result windows for results); One card
 Card per day / Auto; 4:5 / 4:3 preview. Shows each card as a preview canvas with its own
 **Download**, plus **Download all** (the previewed shape) and **Download both shapes**.
 The two shapes can split into different numbers of cards, so "both" is per tab, not per
-card. Under each preview, the rows with a
-**Leave off** toggle. Under Results, the **Add result** form (section 4).
+card. Below the previews, one list of the window's rows, each with a **Leave off**
+toggle. Under Results, the **Add result** form (section 4).
 
 It executes `ops` on a canvas and nothing else. No layout decision lives in JSX.
 
@@ -138,13 +138,15 @@ so Sunday's results otherwise appear on Monday. The button opens
 `https://github.com/seaninryan/fixtures-data/actions/workflows/daily-check.yml` in a
 new tab, where the owner presses Run workflow.
 
-The app then polls `api.github.com/repos/seaninryan/fixtures-data/commits/main`
-(CORS-enabled, unauthenticated, 60 requests an hour) every 15 s for up to 10 minutes.
-When the head SHA changes it re-fetches the JSON from `raw.githubusercontent.com` **at
-that SHA**, not at `main` — the branch URL is cached for up to five minutes and would
-serve the old file. `dataSource.js` gains an optional ref and stays the single place
-that knows where the JSON lives. The poll times out quietly back to the normal state
-with a "no new data yet" note.
+The app then polls the latest commit touching `latest.json`
+(`api.github.com/repos/seaninryan/fixtures-data/commits?path=latest.json&per_page=1`;
+CORS-enabled, unauthenticated, 60 requests an hour) every 15 s for up to 10 minutes. A
+`teams.json` edit does not touch that file, so it is never mistaken for a finished scan.
+When the SHA changes it re-fetches the JSON from `raw.githubusercontent.com` **at that
+SHA** (`rawBaseAt(sha)` in `dataSource.js`), not at `main` — the branch URL is cached
+for up to five minutes and would serve the old file. One sync can use 41 requests, so a
+second sync within the hour may be rate-limited; that, a timeout and a failed load each
+leave a message in the footer, and a failed reload keeps the data already on screen.
 
 ## 4. Played games that have left the feed
 

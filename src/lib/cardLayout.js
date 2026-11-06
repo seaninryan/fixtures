@@ -160,7 +160,7 @@ function bodyHeight(groups, s, showDays) {
   return s * ((showDays ? groups.length * M.subdayH : 0) + n * M.rowH + Math.max(0, n - 1) * M.rowGap);
 }
 
-function rowOps(kind, r, y, s, region, measure, pal) {
+function rowOps(r, y, s, region, measure, pal) {
   const ops = [];
   const h = M.rowH * s;
   const mid = y + h / 2;
@@ -216,7 +216,7 @@ function buildCard(kind, groups, shapeName, measure, part) {
       y += M.subdayH * s;
     }
     for (const r of g.rows) {
-      ops.push(...rowOps(kind, r, y, s, region, measure, pal));
+      ops.push(...rowOps(r, y, s, region, measure, pal));
       y += (M.rowH + M.rowGap) * s;
     }
   }

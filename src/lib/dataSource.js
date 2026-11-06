@@ -38,7 +38,8 @@ export const WORKFLOW_URL =
 // Latest commit touching latest.json. Not the branch head: latest.json changes on every
 // scan (fetchedAt moves), whereas a teams.json edit or any other push to main does not
 // touch it, so only a finished scan moves this. Returns an ARRAY of one commit.
-// Unauthenticated, CORS-enabled, 60 requests an hour per IP; the poll stays well under.
+// Unauthenticated, CORS-enabled, 60 requests an hour per IP. One sync polls up to 41
+// times, so a second sync within the hour may hit the limit - the app says so.
 export const LATEST_SNAPSHOT_COMMIT_URL =
   `https://api.github.com/repos/${DATA_REPO}/commits?path=latest.json&sha=${DATA_BRANCH}&per_page=1`;
 

@@ -121,7 +121,9 @@ offline runs.
 - **The site's `today` is the club's local date, never UTC.** Ireland is UTC+1
   for half the year, so a UTC date is a day behind between Irish midnight and
   01:00 and every window then selects yesterday. `scripts/check.mjs` stays on
-  UTC on purpose: the cron runs around 11:00, when the two always agree.
+  UTC on purpose: the cron runs at 06:17 UTC, when the two always agree. A manual
+  "Sync now" run between Irish midnight and 01:00 in summer would see yesterday's
+  date; the only effect is a game dated that day being treated as not yet played.
 - **There is no weekend-only results window.** This club plays midweek evenings
   routinely, and a weekend-only default hid half the results store.
 - **`parse.js` never throws.** One bad block costs that block.
