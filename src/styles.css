@@ -118,3 +118,5 @@ input.score { width: 4em; }
 .cardrows input.opp { flex: 1 1 9em; min-width: 0; font: inherit; background: var(--bg); color: var(--fg);
   border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 .cardrows input.opp:focus { outline: 2px solid #1f6feb; outline-offset: -1px; }
+.dupnote p, .dupnote ul { margin: 4px 0; }
+.dupnote li { white-space: pre-wrap; }
