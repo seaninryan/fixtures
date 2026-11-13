@@ -171,10 +171,12 @@ offline runs.
 - **The alert email is built ONCE, over both sources.** `changeReport` resolves labels
   from the fixture list it is handed, so a per-source report will drop the A/B letter
   the day a youth squad migrates while its sibling is still on Galway FA.
-- **Hand-entered results and Leave off reach the graphics only.** They live in this
+- **Hand-entered results, Leave off and Hide venue reach the graphics only.** They live in this
   browser's localStorage, never `results.json`, the Form tab or the email. A forfeit left
   off a card still counts in Form, because it is the league's result. Leave-off keys carry
   the kind, so leaving a game off Friday's fixtures card does not hide Sunday's score.
+  Hide venue exists because a feed venue can be wrong with no way to fix it upstream (FAI
+  listed a home game "at Kiltullagh,"); the announcement and email still print the note.
 - **Opponent renames are display only.** Identity and change detection use the raw feed
   name, so renaming never raises an alert, and an OPPONENT CHANGE prints raw names -
   cleaning both sides could print "Knocknacarra -> Knocknacarra". `seedConfig` must carry

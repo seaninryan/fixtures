@@ -110,6 +110,7 @@ input.score { width: 4em; }
 .cardrows li { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
 .cardrows li.off { opacity: 0.5; }
 .cardrows li.off .who { text-decoration: line-through; }
+.cardrows .strike { text-decoration: line-through; }
 .cardrows .leave { display: flex; gap: 4px; align-items: center; white-space: nowrap; font-size: 12px; }
 /* Label and input share a line when the column allows, and the input takes the whole
    next line when it does not - never a sliver beside the label. */

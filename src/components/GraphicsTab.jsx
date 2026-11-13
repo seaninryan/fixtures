@@ -20,6 +20,8 @@ const SHAPE_NAMES = Object.keys(SHAPES);
 const SHAPE_LABEL = { "4x5": "4:5", "4x3": "4:3" };
 const LS_LEAVE_OFF = "cards.leaveOff";
 const LS_MANUAL = "cards.manual";
+// fids whose "(at Venue)" is dropped from the cards. No kind prefix: only fixtures carry one.
+const LS_HIDE_VENUE = "cards.hideVenue";
 
 // Browser storage is a convenience: it can throw (private mode, blocked site data) or
 // come back empty, and the tab must work either way.
@@ -120,9 +122,11 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
   const [shape, setShape] = useState("4x5");
   const [leaveOff, setLeaveOff] = useState([]);
   const [manual, setManual] = useState([]);
+  const [hideVenue, setHideVenue] = useState([]);
   const [downloadError, setDownloadError] = useState(null);
   useEffect(() => {
     setLeaveOff(readLs(LS_LEAVE_OFF));
+    setHideVenue(readLs(LS_HIDE_VENUE));
     // Expired entries are pruned from storage, not just hidden, so it cannot grow forever.
     const stored = readLs(LS_MANUAL);
     const kept = liveEntries(stored, today);
@@ -148,8 +152,8 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
       return resultRows(chosen, labels, config);
     }
     const chosen = fixtures.filter(windowPredicate(fxWindow, today));
-    return fixtureRows(chosen, cardLabels(fixtures, config, []), config);
-  }, [isResults, merged, rsWindow, fxWindow, fixtures, config, today]);
+    return fixtureRows(chosen, cardLabels(fixtures, config, []), config, hideVenue);
+  }, [isResults, merged, rsWindow, fxWindow, fixtures, config, today, hideVenue]);
 
   // Leave-off keys carry the kind: a fixture row and its result share a fid, and leaving
   // a game off Friday's fixtures card must not hide its score on Sunday's results card.
@@ -171,6 +175,11 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
     writeLs(LS_LEAVE_OFF, next);
   }
   function saveManual(next) { setManual(next); writeLs(LS_MANUAL, next); }
+  function toggleVenue(id) {
+    const next = hideVenue.includes(id) ? hideVenue.filter((x) => x !== id) : [...hideVenue, id];
+    setHideVenue(next);
+    writeLs(LS_HIDE_VENUE, next);
+  }
   const rename = (raw, name) => onConfigChange?.(setOpponent(config, raw, name));
   // teams.json failed to load: a rename could only be saved by overwriting it.
   const locked = savedConfig === null;
@@ -236,7 +245,8 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
             {cards.map((card, i) => (
               <div key={card.fileName} className="cardcol">
                 <CardPreview kind={lower} shape={shape} card={card} fontsReady={fontsReady} />
-                <CardRows entries={sections[i]?.rows ?? []} onToggle={toggleRow} onRename={rename} locked={locked} />
+                <CardRows entries={sections[i]?.rows ?? []} onToggle={toggleRow} onRename={rename} locked={locked}
+                          onToggleVenue={toggleVenue} />
               </div>
             ))}
           </div>
@@ -248,7 +258,7 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
         <div className="card">
           <p className="phead">Not on any card</p>
           <CardRows entries={orphans.map((row) => ({ row, leftOff: true }))}
-                    onToggle={toggleRow} onRename={rename} locked={locked} />
+                    onToggle={toggleRow} onRename={rename} locked={locked} onToggleVenue={toggleVenue} />
         </div>
       )}
       {allRows.length > 0 && <ConfigSave config={config} savedConfig={savedConfig} />}
@@ -274,7 +284,7 @@ export default function GraphicsTab({ fixtures, awaiting = [], results, config, 
 
 // One card's games: Leave off, and the opponent renamed in place. The input commits on
 // blur or Enter, not per keystroke - each commit re-lays out and redraws every card.
-function CardRows({ entries, onToggle, onRename, locked }) {
+function CardRows({ entries, onToggle, onRename, locked, onToggleVenue }) {
   if (entries.length === 0) return null;
   return (
     <ul className="cardrows">
@@ -291,7 +301,15 @@ function CardRows({ entries, onToggle, onRename, locked }) {
               ? <OpponentInput raw={row.meta.opponentRaw} shown={row.meta.opponent} onRename={onRename} disabled={locked} />
               : <span>{row.meta.opponent}</span>}
             {row.meta.score ? <span className="dim"> {row.meta.score}</span> : null}
+            {row.meta.venueNote ? <span className={row.meta.venueHidden ? "dim strike" : "dim"}>{row.meta.venueNote}</span> : null}
           </span>
+          {/* Only where there is a note to hide; a hidden one stays listed so it can come back. */}
+          {row.meta.venueNote ? (
+            <label className="leave">
+              <input type="checkbox" checked={row.meta.venueHidden} onChange={() => onToggleVenue(row.id)} />
+              <span>Hide venue</span>
+            </label>
+          ) : null}
         </li>
       ))}
     </ul>
