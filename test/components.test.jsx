@@ -616,3 +616,51 @@ describe("SquadsTab opponents", () => {
     expect(html).toContain("Team X");
   });
 });
+
+describe("AnnouncementTab duplicate note", () => {
+  const dup = {
+    fid: "7035325", teamId: "234323", date: "2026-11-14", time: "14:00", isHome: true,
+    ourTeam: "Craughwell United", opponent: "Mervue Utd", venue: "Craughwell",
+    competition: "FAI Junior Cup", comment: "",
+  };
+  const cfg = { version: 1, teams: { "234323": { label: "U21 Men", color: "#e5484d" } } };
+
+  it("says which Galway FA fixture was hidden", () => {
+    const html = renderToStaticMarkup(
+      <AnnouncementTab fixtures={[]} hidden={[dup]} config={cfg} today="2026-11-13" />,
+    );
+    expect(html).toContain("Hidden 1 Galway FA fixture that duplicates an FAI Connect one");
+    expect(html).toContain("Sat 14 Nov 14:00  U21 Men v Mervue Utd");
+  });
+
+  it("pluralises", () => {
+    const html = renderToStaticMarkup(
+      <AnnouncementTab fixtures={[]} hidden={[dup, { ...dup, fid: "2", time: "16:00" }]}
+                       config={cfg} today="2026-11-13" />,
+    );
+    expect(html).toContain("Hidden 2 Galway FA fixtures that duplicate FAI Connect ones");
+  });
+
+  it("leaves out a hidden game that has already been played", () => {
+    const html = renderToStaticMarkup(
+      <AnnouncementTab fixtures={[]} hidden={[dup]} config={cfg} today="2026-11-15" />,
+    );
+    expect(html).not.toContain("Hidden");
+  });
+
+  it("renders no note when nothing was hidden", () => {
+    const html = renderToStaticMarkup(
+      <AnnouncementTab fixtures={fixtures} config={config} today="2026-08-25" />,
+    );
+    expect(html).not.toContain("Hidden");
+  });
+
+  // The note explains the page; it is not part of what gets posted.
+  it("keeps the note out of the announcement card", () => {
+    const html = renderToStaticMarkup(
+      <AnnouncementTab fixtures={[]} hidden={[dup]} config={cfg} today="2026-11-13" />,
+    );
+    const card = html.slice(html.indexOf('class="card announcement"'));
+    expect(card).not.toContain("Hidden");
+  });
+});

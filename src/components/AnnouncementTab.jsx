@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { announceLines } from "../lib/announce.js";
+import { announceLines, formatFixtureLine, shortDate } from "../lib/announce.js";
+import { resolveTeams } from "../lib/teams.js";
 import { WINDOWS } from "../lib/window.js";
 
-export default function AnnouncementTab({ fixtures, config, today }) {
+export default function AnnouncementTab({ fixtures, hidden = [], config, today }) {
   const [windowName, setWindowName] = useState("Next 7 days");
   const [copied, setCopied] = useState(false);
 
@@ -11,6 +12,14 @@ export default function AnnouncementTab({ fixtures, config, today }) {
   // cannot ride along into a pasted WhatsApp message the way an emoji prefix did.
   const lines = announceLines(fixtures, config, windowName, today);
   const text = lines.map((line) => line.text).join("\n");
+
+  // Galway FA copies of FAI Connect games, hidden by combine() - see dedupe.js. Said out
+  // loud, so a wrong match can never take a real game off the announcement silently.
+  // Only games still to come: a hidden game already played is no longer news. Labels
+  // resolve over every fixture, hidden ones included, never a subset.
+  const upcomingHidden = hidden.filter((f) => typeof f.date === "string" && f.date >= today);
+  const { labels } = resolveTeams([...(fixtures ?? []), ...hidden], config);
+  const n = upcomingHidden.length;
 
   async function copy() {
     try {
@@ -30,6 +39,20 @@ export default function AnnouncementTab({ fixtures, config, today }) {
                   onClick={() => setWindowName(w)}>{w}</button>
         ))}
       </div>
+      {n > 0 && (
+        <div className="dim dupnote">
+          <p>
+            {n === 1
+              ? "Hidden 1 Galway FA fixture that duplicates an FAI Connect one:"
+              : `Hidden ${n} Galway FA fixtures that duplicate FAI Connect ones:`}
+          </p>
+          <ul>
+            {upcomingHidden.map((f) => (
+              <li key={f.fid}>{`${shortDate(f.date)} ${formatFixtureLine(f, labels, config)}`}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="card announcement">
         {lines.map((line, i) => (
           // The index is the key on purpose: these lines have no identity of their own,

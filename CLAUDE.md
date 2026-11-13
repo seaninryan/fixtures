@@ -87,6 +87,11 @@ lives in a unit-tested pure function; new derivations belong in lib with tests.
   stored fixtures keep the raw name. `cardSections.js` groups the Graphics tab's rows,
   left-off ones included, under the card that covers their date. `ConfigSave.jsx` is the
   one copy-JSON / edit-on-GitHub control, shared by the Squads and Graphics tabs.
+- `dedupe.js` — a game BOTH leagues list (a migrating squad, or a cup tie Galway FA files
+  under the wrong team) is shown once, as FAI Connect's. Matched on date, time, home/away
+  and a normalised opponent - results, which have no time, on the score instead - in
+  `combine.js` at read time; the Fixtures tab names what it hid. Squads and Changes get
+  `allFixtures`, undeduped.
 
 "Sync now" opens the data repo's workflow page; the site then polls the latest commit
 touching `latest.json` and reloads at that commit's raw URL, because the branch URL is
@@ -188,6 +193,11 @@ offline runs.
 - **Cards are drawn only with the real fonts.** Measuring with a fallback face fits text
   to the wrong widths, so previews and downloads wait for `document.fonts` and stay
   disabled, with a warning, if a face never loads.
+- **Galway/FAI duplicates are hidden at read time, never in the scan.** It is the one
+  match on date and name rather than `fid`, and it only decides what is shown. Dropping
+  the row in the scan would diff it as a CANCELLED alert for a game that is still on.
+  Upcoming hidden fixtures are always listed, so a false match there cannot pass silently;
+  hidden results are not listed, which is why a result must match on the score as well.
 
 ## The data sources
 
