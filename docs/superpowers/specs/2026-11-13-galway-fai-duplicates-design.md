@@ -25,23 +25,23 @@ alert for a game that is still on, which is the false cancellation the invariant
 
 ## The rule - `src/lib/dedupe.js`
 
-`dupeKey(opponentRaw, config)`: `opponentName(raw, config)` (strips the trailing team
-letter and the COMET season code, applies `teams.json` `opponents` overrides), then
-lowercase it, replace the word `utd` with `united`, remove the words `fc` and `afc`,
-remove punctuation and collapse whitespace.
-"Mervue Utd" and "Mervue United FC Jun A" (override "Mervue United") both give
-`mervue united`.
+`dupeKey(opponentRaw)`: `cleanOpponent(raw)` (strips the trailing team letter and the
+COMET season code), then lowercase it, replace the word `utd` with `united`, remove the
+words `fc`, `afc`, `jun`, `junior` and `juniors`, remove punctuation and collapse
+whitespace. "Mervue Utd" and "Mervue United FC Jun A" both give `mervue united`. The
+owner's `teams.json` renames are deliberately not used, so matching never depends on
+whether a rename has been saved.
 
-`dropGalwayDuplicates(galway, fai, config, { withTime })` returns `{ kept, hidden }`.
+`dropGalwayDuplicates(galway, fai, { withTime })` returns `{ kept, hidden }`.
 A Galway entry is hidden when an FAI entry not already used has the same `date`, the same
 `isHome`, the same `dupeKey` of `opponent` and, when `withTime` is true, the same `time`.
 Each FAI entry hides at most one Galway entry, so two Galway rows never collapse into one
 FAI row. Order of `kept` is the order of `galway`. Pure, no I/O, never throws on a
 malformed entry: an entry missing date or opponent simply never matches.
 
-## Where it runs - `combine()` in `src/App.jsx`
+## Where it runs - `combine()` in `src/lib/combine.js`
 
-`combine` already joins the sources, and every tab reads from what it returns. It now:
+`combine` (moved out of `App.jsx` so it can be unit-tested) already joins the sources, and every tab reads from what it returns. It now:
 
 - Fixtures: Galway `snapshot.fixtures` is deduped against FAI `fixtures + awaiting`
   (`withTime: true`).
@@ -63,7 +63,8 @@ derivation, so a hidden row cannot rename a squad.
 
 ## The note
 
-When `hidden` is non-empty, the Fixtures tab shows one line above the announcement:
+When `hidden` holds any game dated today or later, the Fixtures tab shows a note above the
+announcement. A hidden game already played is no longer news and is left out:
 
 > Hidden 1 Galway FA fixture that duplicates an FAI Connect one: Sat 14 Nov 14:00 U21 Men
 > v Mervue Utd.
