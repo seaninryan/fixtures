@@ -45,6 +45,16 @@ describe("combine", () => {
     expect(out.results.results.map((x) => x.fid)).toEqual(["6958003", "fai:56104529"]);
   });
 
+  it("keeps a Galway result against the same club on the same day with another score", () => {
+    const youth = { ...score(g), fid: "7000001", opponent: "Mervue Utd B", ourScore: 5, theirScore: 0 };
+    const out = combine({
+      snapshot: { fixtures: [] },
+      results: { results: [youth] },
+      faiResults: { results: [score(f)] },
+    });
+    expect(out.results.results.map((x) => x.fid)).toEqual(["7000001", "fai:56104529"]);
+  });
+
   it("keeps results null only when both stores failed", () => {
     expect(combine({ snapshot: { fixtures: [] }, results: null, faiResults: null }).results).toBeNull();
     expect(combine({ snapshot: { fixtures: [] }, results: null, faiResults: { results: [] } }).results)

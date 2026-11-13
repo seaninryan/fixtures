@@ -36,13 +36,14 @@ export function combine(state) {
   // exactly one of the two fails we show a partial store without saying so - accepted,
   // because catch(() => null) cannot tell "absent" from "failed" across origins.
   //
-  // Results carry no kick-off time, so they match without one.
+  // Results carry no kick-off time, so they match without one and on the score instead -
+  // see dedupe.js.
   const faiResults = state.faiResults?.results ?? [];
   const results = state.results === null && state.faiResults === null
     ? null
     : {
       results: [
-        ...dropGalwayDuplicates(state.results?.results ?? [], faiResults, { withTime: false }).kept,
+        ...dropGalwayDuplicates(state.results?.results ?? [], faiResults, { withTime: false, withScore: true }).kept,
         ...faiResults,
       ],
     };

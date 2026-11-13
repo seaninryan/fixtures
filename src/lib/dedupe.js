@@ -32,8 +32,16 @@ const keyOf = (x) =>
   x && typeof x.date === "string" && x.date ? dupeKey(x.opponent) : "";
 
 // -> { kept, hidden }. `kept` keeps the order of `galway`. Each FAI entry hides at most
-// one Galway entry. withTime: false for results, which carry no kick-off time.
-export function dropGalwayDuplicates(galway, fai, { withTime = true } = {}) {
+// one Galway entry.
+//
+// Results: withTime false, because they carry no kick-off time, and withScore true. Without
+// a time, the key alone cannot tell a double-header apart - team letters and "Jun" are
+// dropped, so a youth game v "Mervue Utd B" and the Juniors v "Mervue United FC Jun A"
+// on one day share a key - and a hidden result is never listed anywhere. The same game
+// has the same score; a result with no score never matches.
+const scored = (x) => Number.isInteger(x.ourScore) && Number.isInteger(x.theirScore);
+
+export function dropGalwayDuplicates(galway, fai, { withTime = true, withScore = false } = {}) {
   const pool = (fai ?? []).map((f) => ({ f, key: keyOf(f), used: false }));
   const kept = [];
   const hidden = [];
@@ -44,7 +52,10 @@ export function dropGalwayDuplicates(galway, fai, { withTime = true } = {}) {
       p.key === key &&
       p.f.date === g.date &&
       p.f.isHome === g.isHome &&
-      (!withTime || p.f.time === g.time));
+      (!withTime || p.f.time === g.time) &&
+      (!withScore || (scored(g) &&
+        p.f.ourScore === g.ourScore &&
+        p.f.theirScore === g.theirScore)));
     if (match) {
       match.used = true;
       hidden.push(g);

@@ -48,9 +48,13 @@ malformed entry: an entry missing date or opponent simply never matches.
 - Awaiting: Galway `snapshot.awaiting` is deduped against FAI `fixtures + awaiting`
   (`withTime: true`), so a hidden game does not come back in `pending.js` once its
   kick-off has passed.
-- Results: Galway `results` is deduped against FAI `results` (`withTime: false`, because
-  results carry no time), so a Galway score for the cup tie cannot add a game to the U21
-  Form record.
+- Results: Galway `results` is deduped against FAI `results` with no time (results carry
+  none) but with the score: `withScore: true` requires the same `ourScore` and
+  `theirScore`, and a result with no score never matches. Without it, a same-day
+  double-header against two sides of one club (a youth game v "Mervue Utd B", the
+  Juniors v "Mervue United FC Jun A") shares a key, and hidden results are never listed.
+  This stops a Galway score for the cup tie adding a game to the U21 Form record.
+  Accepted gap: until FAI posts its own score, a Galway score for the game still shows.
 - Returns `hidden`: the fixtures hidden by the first rule. Hidden awaiting and results
   entries are not listed separately. They are the same games, already listed while
   upcoming.
@@ -59,7 +63,9 @@ malformed entry: an entry missing date or opponent simply never matches.
 `allFixtures` (both sources, undeduped), because they describe the feed itself. The
 announcement, Results, Graphics and Form tabs get the deduped list. Their labels come
 from `teams.json`, which the scan seeds for every team on every run, and config beats
-derivation, so a hidden row cannot rename a squad.
+derivation, so a hidden row cannot rename a squad. Strictly, those tabs resolve labels over a
+deduped list. That can only differ from the full list for a squad whose `teams.json`
+label is null AND all of whose sibling's fixtures are hidden, which is accepted.
 
 ## The note
 

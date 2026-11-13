@@ -69,6 +69,34 @@ describe("dropGalwayDuplicates", () => {
     expect(dropGalwayDuplicates([g], [f], { withTime: false }).hidden).toEqual([g]);
   });
 
+  // A result has no time, and the key drops team letters and "Jun" - so a double-header
+  // against two sides of one club on one day shares a key. The score tells them apart:
+  // the same game has the same score, a double-header almost never does.
+  describe("withScore", () => {
+    const { time: _g, ...g0 } = galway;
+    const { time: _f, ...f0 } = fai;
+    const g = { ...g0, opponent: "Mervue Utd B", ourScore: 3, theirScore: 1 };
+    const f = { ...f0, ourScore: 0, theirScore: 2 };
+
+    it("keeps a same-day result against the same club with a different score", () => {
+      const out = dropGalwayDuplicates([g], [f], { withTime: false, withScore: true });
+      expect(out.kept).toEqual([g]);
+    });
+
+    it("hides a result with the same score", () => {
+      const same = { ...g, ourScore: 0, theirScore: 2 };
+      expect(dropGalwayDuplicates([same], [f], { withTime: false, withScore: true }).hidden)
+        .toEqual([same]);
+    });
+
+    it("never matches a result with no score", () => {
+      const a = { ...g, ourScore: undefined, theirScore: undefined };
+      const b = { ...f, ourScore: undefined, theirScore: undefined };
+      expect(dropGalwayDuplicates([a], [b], { withTime: false, withScore: true }).kept)
+        .toEqual([a]);
+    });
+  });
+
   it("keeps an entry with no opponent or no date rather than matching it", () => {
     const noOpp = { ...galway, opponent: "" };
     const noDate = { ...galway, date: undefined };
