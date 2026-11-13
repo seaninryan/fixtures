@@ -19,21 +19,31 @@ export function cardLabels(fixtures, config, teamIds) {
 
 const labelOf = (item, labels) => labels[item.teamId] ?? item.ourTeam;
 
-export function fixtureRows(fixtures, labels, config) {
+// `hideVenue` lists fids whose "(at Venue)" the owner dropped from the CARD: the feed's
+// venue can be wrong (FAI listed a home game "at Kiltullagh,") and there is no way to fix
+// it upstream. Browser-only, like Leave off - the announcement and email keep the note.
+export function fixtureRows(fixtures, labels, config, hideVenue) {
+  const hidden = new Set(Array.isArray(hideVenue) ? hideVenue : []);
   return (fixtures ?? []).map((f) => {
     const label = labelOf(f, labels);
     const versus = f.isHome ? "v" : "@";
     const opponent = opponentName(f.opponent, config);
+    const id = String(f.fid);
+    const note = venueNote(f);
+    const venueHidden = note !== "" && hidden.has(id);
     return {
-      id: String(f.fid),
+      id,
       date: f.date,
       time: f.time,
       chip: f.time,
       segments: [
         { text: label, bold: true },
-        { text: ` ${versus} ${opponent}${venueNote(f)}`, bold: false },
+        { text: ` ${versus} ${opponent}${venueHidden ? "" : note}`, bold: false },
       ],
-      meta: { label, versus, opponentRaw: f.opponent, opponent, score: null, editable: true },
+      meta: {
+        label, versus, opponentRaw: f.opponent, opponent, score: null, editable: true,
+        venueNote: note, venueHidden,
+      },
     };
   });
 }

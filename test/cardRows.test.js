@@ -33,6 +33,23 @@ describe("fixtureRows", () => {
     expect(row.segments[1].text).toBe(" v Knocknacarra (at Athenry)");
   });
 
+  it("drops the ground for a game the owner hid it on, and only that game", () => {
+    const rows = fixtureRows([fx({ fid: 7, venue: "Kiltullagh," }), fx({ fid: 8, venue: "Athenry" })],
+      labels, undefined, ["7"]);
+    expect(rows[0].segments[1].text).toBe(" v Knocknacarra");
+    expect(rows[1].segments[1].text).toBe(" v Knocknacarra (at Athenry)");
+  });
+
+  // The UI offers the switch only where a note exists, and must still offer it once hidden.
+  it("reports whether a row has a venue note and whether it is hidden", () => {
+    const [hidden, shown, none] = fixtureRows(
+      [fx({ fid: "7", venue: "Kiltullagh," }), fx({ fid: "8", venue: "Athenry" }), fx({ fid: "9" })],
+      labels, undefined, ["7"]);
+    expect(hidden.meta).toMatchObject({ venueNote: " (at Kiltullagh,)", venueHidden: true });
+    expect(shown.meta).toMatchObject({ venueNote: " (at Athenry)", venueHidden: false });
+    expect(none.meta).toMatchObject({ venueNote: "", venueHidden: false });
+  });
+
   it("falls back to the feed name for an unlabelled squad", () => {
     expect(fixtureRows([fx({ teamId: "99" })], labels)[0].segments[0].text)
       .toBe("Craughwell United");
@@ -106,7 +123,7 @@ describe("opponent names and meta", () => {
   it("rows carry meta for the section UI", () => {
     expect(fixtureRows([fx({ opponent: "Knocknacarra D" })], labels, config)[0].meta).toEqual({
       label: "U15A Boys", versus: "v", opponentRaw: "Knocknacarra D", opponent: "Knocknacarra",
-      score: null, editable: true,
+      score: null, editable: true, venueNote: "", venueHidden: false,
     });
     expect(resultRows([rs({ opponent: "Gort B", manual: true })], labels, config)[0].meta).toMatchObject({
       score: "0-1", editable: false,
